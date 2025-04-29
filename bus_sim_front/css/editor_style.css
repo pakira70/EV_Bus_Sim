@@ -1,0 +1,188 @@
+/* --- Grid Container Styling --- */
+.schedule-grid-container {
+    width: 100%;
+    overflow-x: auto; /* Allow horizontal scrolling */
+    overflow-y: auto; /* Allow vertical scrolling */
+    max-height: 70vh; /* Limit vertical height, adjust as needed */
+    margin-top: 20px;
+    border: 1px solid #ccc;
+    position: relative; /* Needed for sticky elements */
+}
+
+/* --- Grid Table Styling --- */
+#schedule-grid {
+    border-collapse: collapse;
+    white-space: nowrap; /* Prevent text wrapping */
+    /* width: 100%; Don't force 100% width if content is wider */
+    border-spacing: 0; /* Remove spacing between borders */
+}
+
+/* --- General Cell Styling (Headers and Data) --- */
+#schedule-grid th,
+#schedule-grid td {
+    border: 1px solid #ddd; /* Light grey border */
+    padding: 4px 6px;
+    text-align: center;
+    min-width: 35px; /* Minimum width for time slots */
+    font-size: 0.9em;
+    box-sizing: border-box; /* Include padding/border in width/height */
+}
+
+/* --- Header Row Specific Styling --- */
+#schedule-grid thead tr {
+    background-color: #f2f2f2; /* Background for the header row */
+}
+
+#schedule-grid th {
+    position: sticky; /* Make header cells sticky */
+    top: 0; /* Stick to the top */
+    z-index: 10; /* Ensure header is above data */
+    background-color: inherit; /* Inherit row background */
+}
+
+/* --- Rotated Time Headers --- */
+#schedule-grid th:not(:nth-child(1)):not(:nth-child(2)):not(:last-child) { /* Target only time headers */
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    padding: 8px 2px; /* Adjust padding for vertical text */
+    min-width: 25px;
+    max-width: 25px; /* Force narrow width */
+    max-height: 100px; /* Limit height */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    vertical-align: bottom; /* Align text to bottom */
+}
+
+/* --- Sticky First/Second/Last Column Headers (Horizontal Text) --- */
+#schedule-grid th:nth-child(1), /* Bus ID */
+#schedule-grid th:nth-child(2), /* Start SOC */
+#schedule-grid th:last-child { /* Actions */
+    writing-mode: horizontal-tb;
+    text-orientation: initial;
+    position: sticky; /* Keep these headers sticky */
+    left: 0; /* Bus ID sticks left */
+    background-color: #e8e8e8; /* Slightly different background */
+    z-index: 11; /* Above rotated headers and data */
+    min-width: 80px;
+    max-height: none;
+    padding: 4px 6px; /* Reset padding */
+}
+
+#schedule-grid th:nth-child(2) { /* Start SOC offset */
+     left: 80px; /* Adjust based on width of first column + borders */
+}
+
+#schedule-grid th:last-child { /* Actions stick right */
+    position: sticky;
+    right: 0;
+    left: auto; /* Override left sticky */
+    background-color: #e8e8e8;
+    z-index: 11;
+    min-width: 70px;
+}
+
+/* --- Sticky First/Second/Last Data Cells --- */
+#schedule-grid td:nth-child(1), /* Bus ID */
+#schedule-grid td:nth-child(2), /* Start SOC */
+#schedule-grid td:last-child { /* Actions */
+     position: sticky;
+     background-color: #f8f8f8; /* Ensure background hides scrolled content */
+     z-index: 5; /* Below header but above other data */
+}
+
+#schedule-grid td:nth-child(1) { /* Bus ID Data */
+    left: 0;
+    min-width: 80px;
+    font-weight: bold;
+    text-align: left;
+}
+
+#schedule-grid td:nth-child(2) { /* Start SOC Data */
+     left: 80px; /* Match header offset */
+     min-width: 80px;
+}
+
+#schedule-grid td:last-child { /* Actions Data */
+    right: 0;
+    left: auto;
+    min-width: 70px;
+}
+
+/* --- Start SOC Input Styling --- */
+.start-soc-input {
+    width: 55px; /* Slightly wider */
+    padding: 4px;
+    text-align: right;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box;
+    margin-right: 3px;
+}
+
+/* Time Slot Cell Styling */
+.time-slot {
+    cursor: pointer;
+    min-width: 35px; /* Minimum desired width */
+    max-width: 35px; /* Force maximum width */
+    height: 30px;
+    font-size: 0.8em;
+    overflow: hidden; /* Crucial: Hide content that overflows */
+    text-overflow: ellipsis; /* Show "..." if text is cut off */
+    white-space: nowrap; /* Prevent wrapping */
+    line-height: 20px; /* Help vertically center */
+    padding: 4px 2px;
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.time-slot:hover {
+    /* Use outline instead of background for hover to avoid overriding activity color */
+    outline: 2px solid #007bff;
+    outline-offset: -2px;
+    z-index: 1; /* Ensure hover outline is visible */
+}
+
+/* --- Remove Button Styling --- */
+.remove-bus-btn {
+    background-color: #dc3545; /* Red */
+    color: white;
+    border: none;
+    padding: 3px 6px;
+    font-size: 0.8em;
+    cursor: pointer;
+    border-radius: 3px;
+}
+.remove-bus-btn:hover {
+    background-color: #c82333; /* Darker red */
+}
+
+/* --- Popover Styling --- */
+/* Basic styles are inline in HTML for positioning */
+/* Add any additional popover styles here if needed */
+.popover button {
+    margin: 5px 3px; /* Adjust spacing */
+}
+.popover h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+.popover hr {
+    margin: 10px 0;
+}
+#charge-options label,
+#charge-options select {
+    display: block;
+    width: 95%;
+    margin-bottom: 5px;
+}
+#charge-options select {
+    padding: 5px;
+}
+/* --- Cell Selection Highlighting --- */
+.time-slot.range-selected {
+    background-color: #b0e0e6 !important; /* Powder blue - use !important to override activity color temporarily */
+    outline: 1px dashed #007bff; /* Add a dashed outline */
+    outline-offset: -1px;
+}

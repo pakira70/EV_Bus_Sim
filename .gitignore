@@ -1,0 +1,13 @@
+# macOS files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VS Code settings (optional)
+.vscode/
