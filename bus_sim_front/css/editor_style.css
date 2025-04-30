@@ -26,6 +26,11 @@
     min-width: 35px; /* Minimum width for time slots */
     font-size: 0.9em;
     box-sizing: border-box; /* Include padding/border in width/height */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* You might also have vertical-align here, 'middle' is usually default */
+    vertical-align: middle; /* Explicitly setting vertical alignment */
 }
 
 /* --- Header Row Specific Styling --- */
@@ -185,4 +190,170 @@
     background-color: #b0e0e6 !important; /* Powder blue - use !important to override activity color temporarily */
     outline: 1px dashed #007bff; /* Add a dashed outline */
     outline-offset: -1px;
+}
+/* --- Basic Editor Styles (Keep any existing styles) --- */
+.editor-controls button {
+    margin-left: 5px;
+}
+
+.schedule-grid-container {
+    margin-top: 15px;
+    max-height: 60vh; /* Limit height and allow scrolling */
+    overflow: auto;   /* Add scrollbars when needed */
+    border: 1px solid #ccc;
+}
+
+#schedule-grid {
+    border-collapse: collapse;
+    width: 100%; /* Or adjust as needed */
+    font-size: 0.9em;
+    /* Ensure table layout is fixed to prevent column width jumps */
+    table-layout: fixed;
+}
+
+#schedule-grid th,
+#schedule-grid td {
+    border: 1px solid #ddd;
+    padding: 4px 6px;
+    text-align: center;
+    white-space: nowrap; /* Prevent time headers from wrapping */
+    overflow: hidden; /* Hide overflow in cells */
+    text-overflow: ellipsis; /* Add ellipsis (...) if text overflows */
+}
+
+#schedule-grid th {
+    background-color: #f2f2f2;
+    position: sticky; /* Make header sticky */
+    top: 0;           /* Stick to the top of the container */
+    z-index: 10;      /* Ensure header is above scrolling content */
+}
+
+/* Specific column widths (adjust as needed) */
+#schedule-grid th:nth-child(1), /* Bus ID */
+#schedule-grid td:nth-child(1) {
+    width: 80px;
+    position: sticky; /* Make first column sticky */
+    left: 0;          /* Stick to the left */
+    background-color: #f8f8f8; /* Match header or slightly different */
+    z-index: 5; /* Below header but above other cells */
+}
+#schedule-grid th:nth-child(2), /* Start SOC */
+#schedule-grid td:nth-child(2) {
+    width: 100px;
+    /* No sticky needed unless desired */
+}
+#schedule-grid td:nth-child(n+3):nth-child(-n+98) { /* Time slots */
+     width: 35px; /* Fixed width for time slots */
+     font-size: 0.8em; /* Smaller font for R/B/C */
+}
+#schedule-grid th:last-child, /* Actions */
+#schedule-grid td:last-child {
+    width: 80px;
+}
+
+
+.start-soc-input {
+    width: 50px;
+    text-align: right;
+}
+
+.time-slot {
+    cursor: cell; /* Indicate cells are clickable */
+}
+
+.time-slot.range-selected {
+    background-color: rgba(0, 123, 255, 0.3) !important; /* Highlight for selection */
+    outline: 1px dashed blue;
+}
+
+.remove-bus-btn {
+    padding: 2px 5px;
+    font-size: 0.8em;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    cursor: pointer;
+}
+
+
+/* --- Load Modal Styles --- */
+.modal-overlay {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto; /* 15% from the top and centered */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Could be more specific */
+    max-width: 500px; /* Max width */
+    position: relative;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+}
+
+.modal-close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.modal-close-btn:hover,
+.modal-close-btn:focus {
+    color: black;
+    text-decoration: none;
+}
+
+#modal-run-cut-list ul {
+    list-style: none;
+    padding: 0;
+    max-height: 300px; /* Limit list height */
+    overflow-y: auto; /* Add scrollbar if list is long */
+}
+
+/* --- Adjust existing rule slightly if needed --- */
+#modal-run-cut-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Maybe add a little right padding to the list item itself */
+    /* padding-right: 5px; */
+}
+#modal-run-cut-list li:last-child {
+    border-bottom: none;
+}
+
+#modal-run-cut-list button {
+    padding: 5px 10px;
+    cursor: pointer;
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border: none;
+    border-radius: 3px;
+}
+#modal-run-cut-list button:hover {
+    background-color: #45a049;
+}
+/* --- Add this rule for the modal delete button --- */
+#modal-run-cut-list button.delete-btn {
+    background-color: #dc3545; /* Red */
+    margin-left: 8px; /* Add some space between Load and Delete */
+}
+#modal-run-cut-list button.delete-btn:hover {
+    background-color: #c82333; /* Darker red on hover */
 }

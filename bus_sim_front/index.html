@@ -4,19 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EV Bus Energy Simulator - Config</title>
-    <!-- Link to our future CSS file -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
     <h1>EV Bus Energy Simulator - Configuration</h1>
-    <!-- Add this link -->
     <p><a href="run_cut_editor.html">Go to Run Cut Editor →</a></p>
 
     <div class="tabs">
-        <!-- ... rest of the tabs ... -->
-    <div class="tabs">
-        <!-- We'll make these buttons interactive later -->
         <button id="tab-bus-params" class="tab-button active">Bus Parameters</button>
         <button id="tab-charger-setup" class="tab-button">Charger Setup</button>
     </div>
@@ -26,54 +21,65 @@
         <!-- Bus Parameters Tab Content -->
         <div id="bus-params-content" class="content-section active">
             <h2>Bus Fleet Parameters</h2>
-            <p>Define the standard characteristics for the buses in the simulation.</p>
+            <p>Define the standard characteristics and simulation warnings for the buses.</p>
 
             <div class="form-group">
                 <label for="ess-capacity">ESS Capacity (kWh):</label>
-                <input type="number" id="ess-capacity" value="435">
+                <input type="number" id="ess-capacity" value="435" min="1">
                 <p class="helper-text">(Energy Storage System capacity per bus)</p>
             </div>
 
             <div class="form-group">
-                <label for="eu-rate">Average Energy Use Rate (EU) for Simulation Scenario (kW/h):</label>
-                <input type="number" id="eu-rate" value="55">
-                <p class="helper-text">(Rate of energy consumption during RUN state)</p>
-                <p class="helper-text"><em>Note: This single rate should represent the average TOTAL consumption (Traction + Auxiliaries) for the simulated day. Future versions will allow temperature-specific rates.</em></p>
+                <label for="eu-rate">Average Energy Use Rate (EU) during RUN (kW):</label>
+                <input type="number" id="eu-rate" value="55" min="0">
+                 <p class="helper-text">(Rate of energy consumption during RUN state)</p>
+                 <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
             </div>
 
-            <button id="save-bus-params">Save Bus Parameters</button>
+             <!-- *** NEW: Warning Thresholds *** -->
+            <fieldset style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
+                 <legend>Simulation Warning Thresholds</legend>
+                 <div class="form-group">
+                     <label for="warning-threshold-low">Low SOC Warning (%):</label>
+                     <input type="number" id="warning-threshold-low" value="20" min="0" max="100">
+                     <p class="helper-text">(Issue a yellow warning when SOC drops below this)</p>
+                 </div>
+                 <div class="form-group">
+                     <label for="warning-threshold-critical">Critical SOC Warning (%):</label>
+                     <input type="number" id="warning-threshold-critical" value="10" min="0" max="100">
+                     <p class="helper-text">(Issue a red warning when SOC drops below this)</p>
+                 </div>
+                  <p class="helper-text"><em>Note: A "Stranded" warning (bold red) occurs automatically if SOC drops below 5%. Ensure Critical >= 5%.</em></p>
+            </fieldset>
+             <!-- ***************************** -->
+
+
+            <button id="save-bus-params" style="margin-top: 15px;">Save Bus Parameters</button>
             <p id="bus-params-status" class="status-message"></p> <!-- To show save confirmation -->
         </div>
 
-        <!-- Charger Setup Tab Content (Initially hidden by CSS) -->
+        <!-- Charger Setup Tab Content -->
         <div id="charger-setup-content" class="content-section">
             <h2>Charging Infrastructure</h2>
             <p>Define available chargers for assignment in the Run Cut Editor.</p>
-
             <button id="add-charger-btn">[+] Add New Charger</button>
-
             <h3>Configured Chargers:</h3>
             <div id="charger-list-container">
-                <!-- Charger list will be populated here by JavaScript -->
                 <p>No chargers configured yet.</p>
             </div>
-
-             <p id="charger-status" class="status-message"></p> <!-- To show charger save/delete confirmation -->
-
-            <!-- Add/Edit Charger Form (Modal or inline section - hidden initially) -->
+             <p id="charger-status" class="status-message"></p>
+            <!-- Add/Edit Charger Form -->
             <div id="charger-form-container" style="display: none; border: 1px solid #ccc; padding: 15px; margin-top: 15px;">
                  <h4>Charger Details</h4>
-                 <!-- Hidden input to store ID when editing -->
                  <input type="hidden" id="charger-id">
-
                  <div class="form-group">
                      <label for="charger-name">Charger Name:</label>
                      <input type="text" id="charger-name" placeholder="e.g., Depot Charger 1">
                  </div>
                  <div class="form-group">
                      <label for="charger-rate">Charge Rate (kW):</label>
-                     <input type="number" id="charger-rate" placeholder="e.g., 150">
-                     <p class="helper-text">(Fixed rate delivered to bus ESS for MVP)</p>
+                     <input type="number" id="charger-rate" placeholder="e.g., 150" min="0">
+                     <p class="helper-text">(Fixed rate delivered to bus ESS)</p>
                  </div>
                  <button id="save-charger-btn">Save Charger</button>
                  <button id="cancel-charger-btn">Cancel</button>
@@ -82,7 +88,6 @@
 
     </div> <!-- end tab-content -->
 
-    <!-- Link to our future JavaScript file -->
     <script src="js/script.js"></script>
 </body>
 </html>

@@ -2,597 +2,232 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Constants ---
-    const NUM_TIME_SLOTS = 96; // 24 hours * 4 slots/hour
-    const SLOT_DURATION_MINUTES = 15;
+    const NUM_TIME_SLOTS = 96; const SLOT_DURATION_MINUTES = 15;
+    const EDITOR_LAST_STATE_KEY = 'editor_lastState'; const RUN_CUT_PREFIX = 'runCut_';
+    const BUS_PARAMS_KEY = 'busParameters';
 
     // --- DOM Element References ---
+    // (Keep all existing references)
     const runCutNameInput = document.getElementById('run-cut-name');
     const saveRunCutBtn = document.getElementById('save-run-cut-btn');
-    const loadRunCutBtn = document.getElementById('load-run-cut-btn'); // Listener not yet added
+    const loadRunCutBtn = document.getElementById('load-run-cut-btn');
+    const clearRunCutBtn = document.getElementById('clear-run-cut-btn');
     const addBusBtn = document.getElementById('add-bus-btn');
     const runCutStatus = document.getElementById('run-cut-status');
     const gridTable = document.getElementById('schedule-grid');
     const gridTableBody = document.getElementById('schedule-grid-body');
-
-    // Popover Elements
+    const runSimulationBtn = document.getElementById('run-simulation-btn');
+    const resultsContainer = document.getElementById('simulation-results-container');
+    const resultsOutput = document.getElementById('simulation-output');
+    const closeResultsBtn = document.getElementById('close-results-btn');
     const activityPopover = document.getElementById('activity-popover');
     const popoverCellInfo = document.getElementById('popover-cell-info');
     const chargeOptionsDiv = document.getElementById('charge-options');
     const chargerSelect = document.getElementById('charger-select');
     const popoverCancelBtn = document.getElementById('popover-cancel');
     const activityButtons = activityPopover.querySelectorAll('.activity-btn');
+    const loadModal = document.getElementById('load-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const modalRunCutList = document.getElementById('modal-run-cut-list');
+
 
     // --- State Variables ---
-    let runCutData = { // Structure to hold the schedule data
-        name: '',
-        buses: [] // Array of bus schedule objects { busId: string, startSOC: number, schedule: array[96] }
-    };
-    let availableChargers = []; // Will be loaded from config storage
-
-    // Variables to track the cell being edited by the popover
-    let currentEditingCell = null; // The actual <td> element used for positioning popover
-    let currentBusId = null;       // The ID of the bus being edited
-    let currentBusIndex = -1;      // The index in the runCutData.buses array
-    let rangeStartTimeSlot = -1;  // Store the START of the selected range (0-95)
-    let rangeEndTimeSlot = -1;   // Store the END of the selected range (0-95)
-
-    // Variables for drag-select ("paint") functionality
-    let isDragging = false;
-    let dragStartCell = null;      // The cell where dragging started
-    let dragStartBusId = null;     // The bus ID of the row where dragging started
-    let dragStartTimeslot = -1;    // The timeslot index where dragging started
-    let dragCurrentEndTimeslot = -1; // The timeslot index the mouse is currently over during drag
+    // (Keep all existing state variables)
+    let runCutData = { name: '', buses: [] };
+    let availableChargers = [];
+    let currentBusParameters = null;
+    let currentEditingCell = null; let currentBusId = null; let currentBusIndex = -1;
+    let rangeStartTimeSlot = -1; let rangeEndTimeSlot = -1;
+    let isDragging = false; let dragStartCell = null; let dragStartBusId = null;
+    let dragStartTimeslot = -1; let dragCurrentEndTimeslot = -1;
 
 
     // --- Initialization ---
-    function initializeEditor() {
-        console.log("Initializing Run Cut Editor...");
-        loadChargerData(); // Load available chargers first
-        generateGridHeader();
-        // TODO: Implement loading existing run cut data
-        // For now, add one default bus row if empty
-        if (runCutData.buses.length === 0) {
-            addBusRow(); // Add one default bus
-        } else {
-            renderAllBusRows(); // Render buses if data was loaded (future feature)
-        }
-        setupEventListeners();
-    }
+    // (initializeEditor - unchanged)
+    function initializeEditor() { console.log("Initializing Run Cut Editor..."); loadChargerData(); generateGridHeader(); loadLastEditorState(); renderAllBusRows(); setupEventListeners(); }
 
     // --- Event Listeners Setup ---
-    function setupEventListeners() {
-        addBusBtn.addEventListener('click', () => addBusRow()); // Pass no args to create new
-        saveRunCutBtn.addEventListener('click', handleSaveRunCut);
-        // TODO: Add listener for loadRunCutBtn
-
-        // --- Event delegation for drag-and-drop/click ---
-        gridTableBody.addEventListener('mousedown', handleGridMouseDown); // Start drag/click
-        gridTableBody.addEventListener('mouseover', handleGridMouseOver); // Handle dragging over cells
-        // Mouseup needs to be on the document to catch release outside the grid
-        document.addEventListener('mouseup', handleGridMouseUp); // End drag/click
-
-        // Add listeners for popover buttons
-        activityButtons.forEach(btn => btn.addEventListener('click', handleActivitySelection));
-        popoverCancelBtn.addEventListener('click', hidePopover);
-
-        // Add listener for charger selection change
-        chargerSelect.addEventListener('change', handleChargerSelection);
-
-        // Prevent browser's default drag behavior which can interfere
-        gridTableBody.addEventListener('dragstart', (e) => e.preventDefault());
-    }
+    // (setupEventListeners - unchanged, relies on listeners added in showLoadRunCutModal)
+    function setupEventListeners() { addBusBtn.addEventListener('click', () => addBusRow()); saveRunCutBtn.addEventListener('click', handleSaveRunCut); loadRunCutBtn.addEventListener('click', showLoadRunCutModal); clearRunCutBtn.addEventListener('click', handleClearRunCut); modalCloseBtn.addEventListener('click', hideLoadRunCutModal); loadModal.addEventListener('click', (event) => { if (event.target === loadModal) hideLoadRunCutModal(); }); runSimulationBtn.addEventListener('click', handleRunSimulation); closeResultsBtn.addEventListener('click', hideResults); gridTableBody.addEventListener('mousedown', handleGridMouseDown); gridTableBody.addEventListener('mouseover', handleGridMouseOver); document.addEventListener('mouseup', handleGridMouseUp); activityButtons.forEach(btn => btn.addEventListener('click', handleActivitySelection)); popoverCancelBtn.addEventListener('click', hidePopover); chargerSelect.addEventListener('change', handleChargerSelection); gridTableBody.addEventListener('dragstart', (e) => e.preventDefault()); runCutNameInput.addEventListener('input', saveCurrentEditorState); }
 
     // --- Grid Generation ---
-    function generateGridHeader() {
-        const thead = gridTable.querySelector('thead') || gridTable.createTHead();
-        thead.innerHTML = ''; // Clear existing header
-        const headerRow = thead.insertRow();
-
-        // First columns for Bus ID and Start SOC
-        headerRow.innerHTML = '<th>Bus ID</th><th>Start SOC (%)</th>';
-
-        // Generate time slot headers
-        for (let i = 0; i < NUM_TIME_SLOTS; i++) {
-            const th = document.createElement('th');
-            const time = minutesToTime(i * SLOT_DURATION_MINUTES);
-            th.textContent = time;
-            th.title = `Time Slot ${i} (${time})`; // Tooltip
-            headerRow.appendChild(th);
-        }
-        // Add column for actions (like Remove Bus)
-        headerRow.insertCell().outerHTML = '<th>Actions</th>';
-    }
-
-    function minutesToTime(totalMinutes) {
-        const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-        const minutes = (totalMinutes % 60).toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
-    }
-
-    // Function to add a bus row to the table and data model
-    function addBusRow(busData = null) {
-        const isNewBus = !busData; // Flag if we're creating a new bus object
-
-        if (isNewBus) {
-            const newBusId = `Bus-${Date.now().toString().slice(-3)}`;
-            busData = {
-                busId: newBusId,
-                startSOC: 90,
-                schedule: Array(NUM_TIME_SLOTS).fill(null)
-            };
-            runCutData.buses.push(busData);
-        }
-
-        const busIndex = runCutData.buses.findIndex(b => b.busId === busData.busId);
-        if (busIndex === -1 && !isNewBus) {
-            console.error("Render failed: Bus data not found:", busData.busId);
-            return;
-        }
-
-        const row = gridTableBody.insertRow();
-        row.dataset.busId = busData.busId;
-
-        // Cell 1: Bus ID
-        const idCell = row.insertCell();
-        idCell.textContent = busData.busId;
-
-        // Cell 2: Start SOC Input
-        const socCell = row.insertCell();
-        const socInput = document.createElement('input');
-        socInput.type = 'number';
-        socInput.value = busData.startSOC;
-        socInput.min = 0;
-        socInput.max = 100;
-        socInput.classList.add('start-soc-input');
-        socInput.dataset.busId = busData.busId;
-        socInput.addEventListener('change', handleSocChange);
-        socCell.appendChild(socInput);
-        socCell.appendChild(document.createTextNode(' %'));
-
-        // Cells 3 to (NUM_TIME_SLOTS + 2): Time Slots
-        for (let i = 0; i < NUM_TIME_SLOTS; i++) {
-            const cell = row.insertCell();
-            cell.classList.add('time-slot');
-            cell.dataset.busId = busData.busId;
-            cell.dataset.timeSlot = i;
-            updateCellVisual(cell, busData.schedule[i]);
-        }
-
-        // Cell (NUM_TIME_SLOTS + 3): Actions
-        const actionCell = row.insertCell();
-        const removeBtn = document.createElement('button');
-        removeBtn.textContent = '🗑️ Remove';
-        removeBtn.classList.add('remove-bus-btn');
-        removeBtn.dataset.busId = busData.busId;
-        removeBtn.addEventListener('click', handleRemoveBus);
-        actionCell.appendChild(removeBtn);
-
-        if (isNewBus) {
-            console.log("Added bus row:", busData.busId);
-        }
-    }
-
-    // Clears and redraws all bus rows based on the current runCutData.buses array
-    function renderAllBusRows() {
-        gridTableBody.innerHTML = ''; // Clear existing rows
-        runCutData.buses.forEach(bus => {
-            addBusRow(bus);
-        });
-        console.log("Rendered all bus rows.");
-    }
+    // (generateGridHeader, minutesToTime, addBusRow, renderAllBusRows - unchanged)
+    function generateGridHeader() { const thead = gridTable.querySelector('thead') || gridTable.createTHead(); thead.innerHTML = ''; const headerRow = thead.insertRow(); headerRow.innerHTML = '<th>Bus ID</th><th>Start SOC (%)</th>'; for (let i = 0; i < NUM_TIME_SLOTS; i++) { const th = document.createElement('th'); const time = minutesToTime(i * SLOT_DURATION_MINUTES); th.textContent = time; th.title = `Time Slot ${i} (${time})`; headerRow.appendChild(th); } headerRow.insertCell().outerHTML = '<th>Actions</th>'; }
+    function minutesToTime(totalMinutes) { const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0'); const minutes = (totalMinutes % 60).toString().padStart(2, '0'); return `${hours}:${minutes}`; }
+    function addBusRow(busData = null) { const isNewBus = !busData; if (isNewBus) { const newBusId = `Bus-${Date.now().toString().slice(-3)}`; busData = { busId: newBusId, startSOC: 90, schedule: Array(NUM_TIME_SLOTS).fill(null) }; if (runCutData.buses.findIndex(b => b.busId === busData.busId) === -1) { runCutData.buses.push(busData); } } const busIndex = runCutData.buses.findIndex(b => b.busId === busData.busId); if (busIndex === -1) { console.error("Render failed: Bus data not found in runCutData:", busData.busId); return; } const row = gridTableBody.insertRow(); row.dataset.busId = busData.busId; const idCell = row.insertCell(); idCell.textContent = busData.busId; const socCell = row.insertCell(); const socInput = document.createElement('input'); socInput.type = 'number'; socInput.value = busData.startSOC; socInput.min = 0; socInput.max = 100; socInput.classList.add('start-soc-input'); socInput.dataset.busId = busData.busId; socInput.addEventListener('change', handleSocChange); socCell.appendChild(socInput); socCell.appendChild(document.createTextNode(' %')); for (let i = 0; i < NUM_TIME_SLOTS; i++) { const cell = row.insertCell(); cell.classList.add('time-slot'); cell.dataset.busId = busData.busId; cell.dataset.timeSlot = i; const scheduleEntry = busData.schedule[i]; updateCellVisual(cell, scheduleEntry); } const actionCell = row.insertCell(); const removeBtn = document.createElement('button'); removeBtn.textContent = '🗑️ Remove'; removeBtn.classList.add('remove-bus-btn'); removeBtn.dataset.busId = busData.busId; removeBtn.addEventListener('click', handleRemoveBus); actionCell.appendChild(removeBtn); if (isNewBus) { console.log("Added new bus row via button:", busData.busId); saveCurrentEditorState(); } }
+    function renderAllBusRows() { gridTableBody.innerHTML = ''; if (runCutData.buses && runCutData.buses.length > 0) { runCutData.buses.forEach(bus => { addBusRow(bus); }); console.log("Rendered all bus rows from runCutData."); } else { console.log("No bus data to render. Grid is empty."); } }
 
     // --- Grid Interaction ---
+    // (handleGridMouseDown, handleGridMouseOver, handleGridMouseUp, resetDragState - unchanged)
+    function handleGridMouseDown(event) { if (event.button !== 0 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON') return; const targetCell = event.target.closest('.time-slot'); if (targetCell) { event.preventDefault(); isDragging = true; dragStartCell = targetCell; dragStartBusId = targetCell.dataset.busId; dragStartTimeslot = parseInt(targetCell.dataset.timeSlot); dragCurrentEndTimeslot = dragStartTimeslot; console.log(`MouseDown: Target Bus ID: ${targetCell.dataset.busId}, Stored dragStartBusId: ${dragStartBusId}, Slot: ${dragStartTimeslot}`); clearRangeSelection(); targetCell.classList.add('range-selected'); } }
+    function handleGridMouseOver(event) { if (!isDragging || !dragStartCell) return; const targetCell = event.target.closest('.time-slot'); if (targetCell) { const currentBusId = targetCell.dataset.busId; const currentTimeslot = parseInt(targetCell.dataset.timeSlot); if (currentBusId === dragStartBusId) { if(currentTimeslot !== dragCurrentEndTimeslot) { dragCurrentEndTimeslot = currentTimeslot; highlightRange(); } } } }
+    function handleGridMouseUp(event) { if (!isDragging) return; isDragging = false; if (!dragStartCell) return; const startIndex = Math.min(dragStartTimeslot, dragCurrentEndTimeslot); const endIndex = Math.max(dragStartTimeslot, dragCurrentEndTimeslot); console.log(`MouseUp: Started on Bus ${dragStartBusId}, Final Range Slots ${startIndex}-${endIndex}`); currentBusId = dragStartBusId; currentBusIndex = runCutData.buses.findIndex(b => b.busId === currentBusId); console.log(`MouseUp: Set currentBusId: ${currentBusId}, Found currentBusIndex: ${currentBusIndex}`); if (currentBusIndex === -1) { console.error("!!! Bus data not found in runCutData.buses for ID:", currentBusId); } if (currentBusIndex === -1) { console.error("Bus data not found on mouseup:", currentBusId); clearRangeSelection(); resetDragState(); return; } rangeStartTimeSlot = startIndex; rangeEndTimeSlot = endIndex; const firstCellInSelection = gridTableBody.querySelector(`td.time-slot[data-bus-id="${currentBusId}"][data-time-slot="${startIndex}"]`); currentEditingCell = firstCellInSelection || dragStartCell; if (currentEditingCell) { showPopover(currentEditingCell); } else { console.error("Could not find cell to position popover."); } resetDragState(); }
+    function resetDragState() { dragStartCell = null; dragStartBusId = null; dragStartTimeslot = -1; dragCurrentEndTimeslot = -1; }
 
-    // Mousedown initiates the drag selection process or prepares for single click
-    function handleGridMouseDown(event) {
-        if (event.button !== 0 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON') {
-            return; // Only left-click, ignore clicks on inputs/buttons
-        }
-
-        const targetCell = event.target.closest('.time-slot');
-        if (targetCell) {
-            event.preventDefault(); // Prevent text selection
-            isDragging = true;
-            dragStartCell = targetCell;
-            dragStartBusId = targetCell.dataset.busId;
-            dragStartTimeslot = parseInt(targetCell.dataset.timeSlot);
-            dragCurrentEndTimeslot = dragStartTimeslot; // Start and end are same initially
-
-            clearRangeSelection(); // Clear any previous visual selection
-            targetCell.classList.add('range-selected'); // Highlight starting cell
-            console.log(`MouseDown: Bus ${dragStartBusId}, Slot ${dragStartTimeslot}`);
-        }
-    }
-
-    // Mouseover updates the selection range if dragging is active
-    function handleGridMouseOver(event) {
-        if (!isDragging || !dragStartCell) {
-            return; // Exit if not dragging
-        }
-
-        const targetCell = event.target.closest('.time-slot');
-        if (targetCell) {
-            const currentBusId = targetCell.dataset.busId;
-            const currentTimeslot = parseInt(targetCell.dataset.timeSlot);
-
-            // Ensure dragging stays within the same bus row
-            if (currentBusId === dragStartBusId) {
-                // Only update if the end slot has changed
-                if(currentTimeslot !== dragCurrentEndTimeslot) {
-                    dragCurrentEndTimeslot = currentTimeslot;
-                    highlightRange(); // Update visual selection range
-                }
-            }
-            // Optional: Could reset drag if mouse moves to a different row
-        }
-    }
-
-    // Mouseup finalizes the selection and shows the popover
-    function handleGridMouseUp(event) {
-        if (!isDragging) {
-            return; // Exit if not dragging
-        }
-        isDragging = false; // End dragging state IMPORTANT
-
-        // Check if drag actually happened or if it was just a click
-        if (!dragStartCell) return; // Should not happen if isDragging was true, but safety check
-
-        // Determine the final start and end of the selection range
-        const startIndex = Math.min(dragStartTimeslot, dragCurrentEndTimeslot);
-        const endIndex = Math.max(dragStartTimeslot, dragCurrentEndTimeslot);
-
-        console.log(`MouseUp: Final Range Bus ${dragStartBusId}, Slots ${startIndex}-${endIndex}`);
-
-        // Set the state needed for the popover interaction
-        currentBusId = dragStartBusId;
-        currentBusIndex = runCutData.buses.findIndex(b => b.busId === currentBusId);
-
-        if (currentBusIndex === -1) {
-            console.error("Bus data not found on mouseup:", currentBusId);
-            clearRangeSelection();
-            resetDragState();
-            return;
-        }
-
-        // Store the final validated range for popover actions
-        rangeStartTimeSlot = startIndex;
-        rangeEndTimeSlot = endIndex;
-
-        // Find the first cell in the selection for positioning the popover
-        const firstCellInSelection = gridTableBody.querySelector(`td.time-slot[data-bus-id="${currentBusId}"][data-time-slot="${startIndex}"]`);
-        currentEditingCell = firstCellInSelection || dragStartCell; // Use first cell or fallback
-
-        // Only show popover if currentEditingCell is valid
-        if (currentEditingCell) {
-             showPopover(currentEditingCell); // Show popover near the start of the selection
-        } else {
-             console.error("Could not find cell to position popover.");
-        }
-
-
-        // Reset drag-specific variables
-        resetDragState();
-        // Note: Visual highlighting is cleared via hidePopover later
-    }
-
-    // Helper to reset variables used during the drag operation
-    function resetDragState() {
-         dragStartCell = null;
-         dragStartBusId = null;
-         dragStartTimeslot = -1;
-         dragCurrentEndTimeslot = -1;
-    }
-
-    // Handles changes to the Start SOC input field
-    function handleSocChange(event) {
-        const input = event.target;
-        const busId = input.dataset.busId;
-        const busIndex = runCutData.buses.findIndex(b => b.busId === busId);
-
-        if (busIndex === -1) return; // Should not happen
-
-        let newSoc = parseInt(input.value);
-        if (isNaN(newSoc)) newSoc = 0;
-        newSoc = Math.max(0, Math.min(100, newSoc)); // Clamp between 0-100
-        input.value = newSoc;
-
-        runCutData.buses[busIndex].startSOC = newSoc;
-        console.log(`Bus ${busId} Start SOC updated to: ${newSoc}`);
-    }
-
-    // Handles clicking the remove button on a bus row
-    function handleRemoveBus(event) {
-        const button = event.target.closest('.remove-bus-btn');
-        const busId = button?.dataset.busId; // Use optional chaining
-
-        if (!busId) return;
-
-        if (confirm(`Are you sure you want to remove ${busId} and its schedule?`)) {
-            const busIndexToRemove = runCutData.buses.findIndex(b => b.busId === busId);
-            if (busIndexToRemove > -1) {
-                runCutData.buses.splice(busIndexToRemove, 1); // Remove from data
-                const rowToRemove = gridTableBody.querySelector(`tr[data-bus-id="${busId}"]`);
-                if (rowToRemove) rowToRemove.remove(); // Remove from table
-                showStatusMessage(runCutStatus, `${busId} removed.`);
-            }
-        }
-    }
+    // --- Data Update Handlers ---
+    // (handleSocChange, handleRemoveBus - unchanged)
+    function handleSocChange(event) { const input = event.target; const busId = input.dataset.busId; const busIndex = runCutData.buses.findIndex(b => b.busId === busId); if (busIndex === -1) return; let newSoc = parseInt(input.value); if (isNaN(newSoc)) newSoc = 0; newSoc = Math.max(0, Math.min(100, newSoc)); input.value = newSoc; runCutData.buses[busIndex].startSOC = newSoc; console.log(`Bus ${busId} Start SOC updated to: ${newSoc}`); saveCurrentEditorState(); }
+    function handleRemoveBus(event) { const button = event.target.closest('.remove-bus-btn'); const busId = button?.dataset.busId; if (!busId) return; if (confirm(`Are you sure you want to remove ${busId} and its schedule?`)) { const busIndexToRemove = runCutData.buses.findIndex(b => b.busId === busId); if (busIndexToRemove > -1) { runCutData.buses.splice(busIndexToRemove, 1); const rowToRemove = gridTableBody.querySelector(`tr[data-bus-id="${busId}"]`); if (rowToRemove) rowToRemove.remove(); showStatusMessage(runCutStatus, `${busId} removed.`); saveCurrentEditorState(); } } }
 
     // --- Popover Logic ---
-
-    function showPopover(targetCell) {
-        if (!targetCell) return;
-        const rect = targetCell.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-        activityPopover.style.top = `${rect.bottom + scrollTop + 5}px`;
-        activityPopover.style.left = `${rect.left + scrollLeft}px`;
-        activityPopover.style.display = 'block';
-
-        const startTime = minutesToTime(rangeStartTimeSlot * SLOT_DURATION_MINUTES);
-        let timeRangeText = startTime;
-        if (rangeStartTimeSlot !== rangeEndTimeSlot) {
-            const endTimeMinutes = (rangeEndTimeSlot + 1) * SLOT_DURATION_MINUTES;
-            const endTime = minutesToTime(endTimeMinutes - SLOT_DURATION_MINUTES); // Show end of last slot included
-            timeRangeText = `${startTime} - ${endTime}`;
-        }
-        popoverCellInfo.textContent = `Bus: ${currentBusId}, Time: ${timeRangeText}`;
-
-        chargeOptionsDiv.style.display = 'none';
-        chargerSelect.value = "";
-    }
-
-    function hidePopover() {
-        activityPopover.style.display = 'none';
-        clearRangeSelection(); // Clear visual selection highlight
-        // Reset popover interaction state
-        currentEditingCell = null;
-        currentBusId = null;
-        currentBusIndex = -1;
-        rangeStartTimeSlot = -1;
-        rangeEndTimeSlot = -1;
-    }
-
-    // Handles clicks on the RUN/BREAK/CHARGE buttons within the popover
-    function handleActivitySelection(event) {
-        const selectedActivity = event.target.dataset.activity;
-        console.log("Selected Activity for range:", selectedActivity);
-
-        if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0) {
-            console.error("Invalid state for activity selection.");
-            hidePopover();
-            return;
-        }
-
-        if (selectedActivity === 'CHARGE') {
-            populateChargerSelect();
-            chargeOptionsDiv.style.display = 'block';
-        } else {
-            const scheduleEntry = {
-                activity: selectedActivity,
-                chargerId: null
-            };
-            updateScheduleRange(scheduleEntry); // Apply RUN or BREAK to range
-        }
-    }
-
-    // Handles the change event of the charger dropdown select
-    function handleChargerSelection() {
-        const selectedChargerId = chargerSelect.value;
-
-        if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0 || !selectedChargerId) {
-            console.log("Charger selection requires valid range and charger choice.");
-            return; // Don't proceed if no valid charger selected
-        }
-
-        const scheduleEntry = {
-            activity: 'CHARGE',
-            chargerId: selectedChargerId
-        };
-        updateScheduleRange(scheduleEntry); // Apply CHARGE to range
-    }
+    // (showPopover, hidePopover, handleActivitySelection, handleChargerSelection, populateChargerSelect - unchanged)
+    function showPopover(targetCell) { if (!targetCell) return; const rect = targetCell.getBoundingClientRect(); const scrollTop = window.pageYOffset || document.documentElement.scrollTop; const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft; activityPopover.style.top = `${rect.bottom + scrollTop + 5}px`; activityPopover.style.left = `${rect.left + scrollLeft}px`; activityPopover.style.display = 'block'; const startTime = minutesToTime(rangeStartTimeSlot * SLOT_DURATION_MINUTES); let timeRangeText = startTime; if (rangeStartTimeSlot !== rangeEndTimeSlot) { const endTimeMinutes = (rangeEndTimeSlot + 1) * SLOT_DURATION_MINUTES; const endTime = minutesToTime(endTimeMinutes - SLOT_DURATION_MINUTES); timeRangeText = `${startTime} - ${endTime}`; } popoverCellInfo.textContent = `Bus: ${currentBusId}, Time: ${timeRangeText}`; chargeOptionsDiv.style.display = 'none'; chargerSelect.value = ""; }
+    function hidePopover() { activityPopover.style.display = 'none'; clearRangeSelection(); currentEditingCell = null; currentBusId = null; currentBusIndex = -1; rangeStartTimeSlot = -1; rangeEndTimeSlot = -1; }
+    function handleActivitySelection(event) { const selectedActivity = event.target.dataset.activity; console.log("Selected Activity for range:", selectedActivity); if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0) { console.error("Invalid state for activity selection."); hidePopover(); return; } if (selectedActivity === 'CHARGE') { populateChargerSelect(); chargeOptionsDiv.style.display = 'block'; } else { const scheduleEntry = { activity: selectedActivity, chargerId: null }; updateScheduleRange(scheduleEntry); } }
+    function handleChargerSelection() { const selectedChargerId = chargerSelect.value; if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0 || !selectedChargerId) { console.log("Charger selection requires valid range and charger choice."); return; } const scheduleEntry = { activity: 'CHARGE', chargerId: selectedChargerId }; updateScheduleRange(scheduleEntry); }
+    function populateChargerSelect() { chargerSelect.innerHTML = '<option value="">--Select Charger--</option>'; if (availableChargers.length === 0) { chargerSelect.innerHTML = '<option value="" disabled>No Chargers Configured</option>'; } else { availableChargers.forEach(charger => { const option = document.createElement('option'); option.value = charger.id; option.textContent = `${charger.name} (${charger.rate} kW)`; chargerSelect.appendChild(option); }); } }
 
 
-    // Applies a schedule entry to the selected range in data and visuals
-    function updateScheduleRange(scheduleEntry) {
-         // Validate state before updating
-        if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0 || !runCutData.buses[currentBusIndex]) {
-            console.error("Invalid state for updating schedule range. Aborting.");
-            hidePopover();
-            return;
-        }
+    // --- Core Schedule Update Logic ---
+    // (updateScheduleRange, updateCellVisual - unchanged)
+    function updateScheduleRange(scheduleEntry) { if (currentBusIndex < 0 || rangeStartTimeSlot < 0 || rangeEndTimeSlot < 0 || !runCutData.buses[currentBusIndex]) { console.error("Invalid state for updating schedule range. Aborting."); hidePopover(); return; } if (scheduleEntry.activity === 'CHARGE' && scheduleEntry.chargerId) { const currentBusIdBeingEdited = runCutData.buses[currentBusIndex].busId; for (let i = rangeStartTimeSlot; i <= rangeEndTimeSlot; i++) { for (let busIdx = 0; busIdx < runCutData.buses.length; busIdx++) { if (busIdx === currentBusIndex) continue; const otherBusSchedule = runCutData.buses[busIdx].schedule[i]; if (otherBusSchedule && otherBusSchedule.activity === 'CHARGE' && otherBusSchedule.chargerId === scheduleEntry.chargerId) { const conflictTime = minutesToTime(i * SLOT_DURATION_MINUTES); const conflictBusId = runCutData.buses[busIdx].busId; const charger = availableChargers.find(ch => ch.id === scheduleEntry.chargerId); const chargerName = charger ? charger.name : scheduleEntry.chargerId; alert(`Conflict detected!\nCharger "${chargerName}" is already assigned to Bus "${conflictBusId}" at ${conflictTime}. \nPlease choose a different charger or time slot.`); return; } } } } console.log(`updateScheduleRange: Attempting update for Bus ID: ${currentBusId}, Bus Index: ${currentBusIndex}, Slots: ${rangeStartTimeSlot}-${rangeEndTimeSlot}`); const busRowElement = gridTableBody.querySelector(`tr[data-bus-id="${currentBusId}"]`); if (!busRowElement) { console.error(`!!! updateScheduleRange: Could not find bus row element for ID: ${currentBusId}`); hidePopover(); return; } for (let i = rangeStartTimeSlot; i <= rangeEndTimeSlot; i++) { runCutData.buses[currentBusIndex].schedule[i] = { ...scheduleEntry }; const cellElement = busRowElement.querySelector(`td.time-slot[data-time-slot="${i}"]`); if(cellElement) { cellElement.classList.remove('range-selected'); updateCellVisual(cellElement, scheduleEntry); } else { console.warn(`!!! updateScheduleRange: Could not find cell element for Bus ${currentBusId}, Slot ${i}`); } } console.log(`Updated Bus ${currentBusId} (Index ${currentBusIndex}), Slots ${rangeStartTimeSlot}-${rangeEndTimeSlot}:`, scheduleEntry); saveCurrentEditorState(); hidePopover(); }
+    function updateCellVisual(cellElement, scheduleEntry) { cellElement.innerHTML = ''; cellElement.style.backgroundColor = ''; const busId = cellElement.dataset.busId; const timeSlot = parseInt(cellElement.dataset.timeSlot); const time = minutesToTime(timeSlot * SLOT_DURATION_MINUTES); let baseTooltip = `Bus: ${busId}, Time: ${time}`; if (!scheduleEntry) { cellElement.title = baseTooltip; return; } let cellText = ''; let bgColor = ''; let tooltipText = `${baseTooltip}\nActivity: ${scheduleEntry.activity}`; switch (scheduleEntry.activity) { case 'RUN': cellText = 'R'; bgColor = '#add8e6'; break; case 'BREAK': cellText = 'B'; bgColor = '#fffacd'; break; case 'CHARGE': cellText = 'C'; bgColor = '#90ee90'; if (scheduleEntry.chargerId) { const charger = availableChargers.find(ch => ch.id === scheduleEntry.chargerId); const chargerName = charger ? charger.name : 'Unknown'; tooltipText += `\nCharger: ${chargerName} (ID: ${scheduleEntry.chargerId || 'None'})`; } else { tooltipText += `\nCharger: None assigned`; } break; } cellElement.textContent = cellText; cellElement.style.backgroundColor = bgColor; cellElement.title = tooltipText; }
 
-        // --- VALIDATION START: Check for Charger Conflicts ---
-        if (scheduleEntry.activity === 'CHARGE' && scheduleEntry.chargerId) {
-            const currentBusIdBeingEdited = runCutData.buses[currentBusIndex].busId; // Get ID of the bus being edited
-            for (let i = rangeStartTimeSlot; i <= rangeEndTimeSlot; i++) { // Loop through time slots in the target range
-                // Check all OTHER buses
-                for (let busIdx = 0; busIdx < runCutData.buses.length; busIdx++) {
-                    // Skip the bus we are currently editing
-                    if (busIdx === currentBusIndex) continue;
+    // --- Data Loading/Saving ---
+    // (loadChargerData, loadBusParameters - unchanged)
+    function loadChargerData() { const storedChargers = localStorage.getItem('chargers'); try { availableChargers = storedChargers ? JSON.parse(storedChargers) : []; console.log("Available chargers loaded:", availableChargers); } catch (e) { console.error("Error parsing available chargers:", e); availableChargers = []; } }
+    function loadBusParameters() { const storedParams = localStorage.getItem(BUS_PARAMS_KEY); currentBusParameters = null; if (storedParams) { try { const loadedParams = JSON.parse(storedParams); if (loadedParams && typeof loadedParams.essCapacity === 'number' && loadedParams.essCapacity > 0 && typeof loadedParams.euRate === 'number' && loadedParams.euRate >= 0 && typeof loadedParams.warningThresholdLow === 'number' && loadedParams.warningThresholdLow >= 0 && loadedParams.warningThresholdLow <= 100 && typeof loadedParams.warningThresholdCritical === 'number' && loadedParams.warningThresholdCritical >= 0 && loadedParams.warningThresholdCritical <= 100) { currentBusParameters = loadedParams; console.log("Bus parameters loaded for simulation:", currentBusParameters); return true; } else { console.error("Loaded bus parameters are invalid or incomplete:", loadedParams); alert("Error: Bus parameters configured in the Configuration tab are invalid or incomplete. Please check configuration."); return false; } } catch (e) { console.error("Error parsing bus parameters from Local Storage:", e); alert("Error: Could not parse bus parameters from configuration. Please check configuration."); return false; } } else { alert("Error: Bus parameters have not been configured or saved. Please go to the Configuration tab and save parameters."); return false; } }
 
-                    const otherBusSchedule = runCutData.buses[busIdx].schedule[i];
-                    // Check if the other bus is charging with the same charger at this specific time slot
-                    if (otherBusSchedule &&
-                        otherBusSchedule.activity === 'CHARGE' &&
-                        otherBusSchedule.chargerId === scheduleEntry.chargerId) {
 
-                        // --- Conflict Found! ---
-                        const conflictTime = minutesToTime(i * SLOT_DURATION_MINUTES);
-                        const conflictBusId = runCutData.buses[busIdx].busId;
-                        const charger = availableChargers.find(ch => ch.id === scheduleEntry.chargerId);
-                        const chargerName = charger ? charger.name : scheduleEntry.chargerId;
+    // --- Persistence Logic (Auto-Save/Load Last State) ---
+    // (saveCurrentEditorState, loadLastEditorState, initializeEmptyRunCutData, initializeEmptyRunCutDataAndAddDefaultBus - unchanged)
+    function saveCurrentEditorState() { runCutData.name = runCutNameInput.value.trim(); try { localStorage.setItem(EDITOR_LAST_STATE_KEY, JSON.stringify(runCutData)); } catch (e) { console.error("Error auto-saving editor state:", e); } }
+    function loadLastEditorState() { const savedState = localStorage.getItem(EDITOR_LAST_STATE_KEY); if (savedState) { try { const loadedData = JSON.parse(savedState); if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.buses)) { runCutData = loadedData; runCutNameInput.value = runCutData.name || ''; console.log("Loaded last editor state:", runCutData); if (runCutData.buses.length === 0) { console.log("Loaded state has no buses, adding one default bus."); addBusRow(); } } else { console.warn("Invalid data found in last editor state. Initializing fresh."); initializeEmptyRunCutDataAndAddDefaultBus(); } } catch (e) { console.error("Error parsing last editor state:", e, ". Initializing fresh."); initializeEmptyRunCutDataAndAddDefaultBus(); } } else { console.log("No previous editor state found. Initializing fresh."); initializeEmptyRunCutDataAndAddDefaultBus(); } }
+    function initializeEmptyRunCutData() { runCutData = { name: '', buses: [] }; runCutNameInput.value = ''; console.log("Initialized empty run cut data structure."); }
+    function initializeEmptyRunCutDataAndAddDefaultBus() { initializeEmptyRunCutData(); addBusRow(); }
 
-                        alert(`Conflict detected!\nCharger "${chargerName}" is already assigned to Bus "${conflictBusId}" at ${conflictTime}. \nPlease choose a different charger or time slot.`);
-                        // Don't hide popover here, let user maybe choose different charger
-                        // But we must stop the update process for this selection
-                        return;
-                    }
+
+    // --- Named Save/Load/Clear (Manual) ---
+    // (handleSaveRunCut - unchanged)
+    function handleSaveRunCut() { const name = runCutNameInput.value.trim(); if (!name) { alert("Please enter a name for the run cut before saving."); runCutNameInput.focus(); return; } runCutData.name = name; try { const storageKey = RUN_CUT_PREFIX + name; localStorage.setItem(storageKey, JSON.stringify(runCutData)); console.log("Run Cut Saved:", runCutData); showStatusMessage(runCutStatus, `Run cut "${name}" saved successfully!`); } catch (e) { console.error("Error saving run cut to Local Storage:", e); showStatusMessage(runCutStatus, "Error saving run cut.", true); alert("Error saving run cut. Local Storage might be full or disabled."); } }
+
+    // *** Show Load Modal - MODIFIED to add Delete button ***
+    function showLoadRunCutModal() {
+        console.log("Opening load run cut modal...");
+        modalRunCutList.innerHTML = ''; // Clear previous list
+        let savedRunCutNames = [];
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith(RUN_CUT_PREFIX)) {
+                    savedRunCutNames.push(key.substring(RUN_CUT_PREFIX.length));
                 }
             }
-        }
-        // --- VALIDATION END ---
-
-
-        // If validation passes, proceed with update...
-        const busRowElement = gridTableBody.querySelector(`tr[data-bus-id="${currentBusId}"]`);
-        if (!busRowElement) {
-             console.warn(`Could not find bus row element for ${currentBusId} during range update`);
-             hidePopover(); // Hide popover if row is gone
+        } catch (e) {
+             console.error("Error accessing localStorage:", e);
+             modalRunCutList.innerHTML = '<p style="color: red;">Error accessing saved run cuts.</p>';
+             loadModal.style.display = 'block';
              return;
         }
 
-        // Loop through the stored range (inclusive) and update data + visuals
-        for (let i = rangeStartTimeSlot; i <= rangeEndTimeSlot; i++) {
-            // --- Update the Data Model ---
-            // Use spread syntax for a shallow copy, ensures object identity differs if needed later
-            runCutData.buses[currentBusIndex].schedule[i] = { ...scheduleEntry };
-
-            // --- Update the Cell's Visual Appearance ---
-            const cellElement = busRowElement.querySelector(`td.time-slot[data-time-slot="${i}"]`);
-            if(cellElement) {
-                cellElement.classList.remove('range-selected'); // Remove highlight
-                updateCellVisual(cellElement, scheduleEntry); // Apply final style
-            }
-        }
-
-        console.log(`Updated Bus ${currentBusId} (Index ${currentBusIndex}), Slots ${rangeStartTimeSlot}-${rangeEndTimeSlot}:`, scheduleEntry);
-        // TODO: Consider adding auto-save indication
-
-        hidePopover(); // Hide popover and clear selection state after successful update
-    }
-
-    function updateCellVisual(cellElement, scheduleEntry) {
-        // ... (clear previous content/styles) ...
-        const busId = cellElement.dataset.busId;
-        const timeSlot = parseInt(cellElement.dataset.timeSlot);
-        const time = minutesToTime(timeSlot * SLOT_DURATION_MINUTES);
-        let baseTooltip = `Bus: ${busId}, Time: ${time}`;
-
-        if (!scheduleEntry) {
-            cellElement.title = baseTooltip;
-            return;
-        }
-
-        let cellText = '';
-        let bgColor = '';
-        let tooltipText = `${baseTooltip}\nActivity: ${scheduleEntry.activity}`;
-
-        switch (scheduleEntry.activity) {
-            case 'RUN':
-                cellText = 'R'; bgColor = '#add8e6'; break;
-            case 'BREAK':
-                cellText = 'B'; bgColor = '#fffacd'; break;
-            case 'CHARGE':
-                cellText = 'C'; // Default to just 'C'
-                bgColor = '#90ee90';
-                if (scheduleEntry.chargerId) {
-                    // --- MODIFICATION START ---
-                    console.log(`Updating cell visual for CHARGE. Charger ID from scheduleEntry: ${scheduleEntry.chargerId}`); // Add logging
-
-                    // Find the charger object using the ID
-                    const charger = availableChargers.find(ch => ch.id === scheduleEntry.chargerId);
-                    const chargerName = charger ? charger.name : 'Unknown'; // Get name or default
-                    const chargerIdForTooltip = scheduleEntry.chargerId || 'None'; // Ensure we have the ID
-
-                    // Decide what to display in the cell - Keep it simple: just 'C'
-                    // We rely on the tooltip for charger info
-                    cellText = 'C';
-
-                    // Build the tooltip carefully
-                    tooltipText += `\nCharger: ${chargerName} (ID: ${chargerIdForTooltip})`;
-                    // --- MODIFICATION END ---
-                } else {
-                     tooltipText += `\nCharger: None assigned`; // Tooltip if no charger ID
-                }
-                break;
-        }
-        cellElement.textContent = cellText;
-        cellElement.style.backgroundColor = bgColor;
-        cellElement.title = tooltipText; // Set detailed tooltip
-    }
-
-    // --- Data Loading/Saving ---
-
-    function loadChargerData() {
-        const storedChargers = localStorage.getItem('chargers');
-        try {
-            availableChargers = storedChargers ? JSON.parse(storedChargers) : [];
-            console.log("Available chargers loaded:", availableChargers);
-        } catch (e) {
-            console.error("Error parsing available chargers:", e);
-            availableChargers = [];
-        }
-    }
-
-    function populateChargerSelect() {
-        chargerSelect.innerHTML = '<option value="">--Select Charger--</option>';
-        if (availableChargers.length === 0) {
-            chargerSelect.innerHTML = '<option value="" disabled>No Chargers Configured</option>';
+        if (savedRunCutNames.length === 0) {
+            modalRunCutList.innerHTML = '<p>No saved run cuts found.</p>';
         } else {
-            availableChargers.forEach(charger => {
-                const option = document.createElement('option');
-                option.value = charger.id;
-                option.textContent = charger.name;
-                chargerSelect.appendChild(option);
+            const list = document.createElement('ul');
+            savedRunCutNames.sort().forEach(name => {
+                const listItem = document.createElement('li');
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                nameSpan.style.flexGrow = '1'; // Allow name to take up space
+                nameSpan.style.marginRight = '10px';
+
+                 // --- Container for buttons ---
+                 const buttonGroup = document.createElement('div');
+
+                // Load Button
+                const loadBtn = document.createElement('button');
+                loadBtn.textContent = 'Load';
+                loadBtn.dataset.runCutName = name; // Store name on button
+                loadBtn.addEventListener('click', handleModalLoadClick);
+
+                // *** NEW: Delete Button ***
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.classList.add('delete-btn'); // For CSS styling
+                deleteBtn.dataset.runCutName = name; // Store name here too
+                deleteBtn.addEventListener('click', handleModalDeleteClick); // Add listener
+
+                buttonGroup.appendChild(loadBtn);
+                buttonGroup.appendChild(deleteBtn); // Add delete button next to load
+
+                listItem.appendChild(nameSpan);
+                listItem.appendChild(buttonGroup); // Add the group of buttons
+                list.appendChild(listItem);
             });
+            modalRunCutList.appendChild(list);
         }
+        loadModal.style.display = 'block'; // Show the modal
     }
 
-    function handleSaveRunCut() {
-        const name = runCutNameInput.value.trim();
-        if (!name) {
-            alert("Please enter a name for the run cut before saving.");
-            runCutNameInput.focus();
+    // (hideLoadRunCutModal - unchanged)
+    function hideLoadRunCutModal() { loadModal.style.display = 'none'; }
+    // (handleModalLoadClick - unchanged)
+    function handleModalLoadClick(event) { const button = event.target; const nameToLoad = button.dataset.runCutName; if (!nameToLoad) { console.error("Could not find run cut name on button:", button); return; } console.log(`Load button clicked for: ${nameToLoad}`); performLoad(nameToLoad); hideLoadRunCutModal(); }
+    // (performLoad - unchanged)
+    function performLoad(nameToLoad) { const storageKey = RUN_CUT_PREFIX + nameToLoad; const savedDataString = localStorage.getItem(storageKey); if (!savedDataString) { alert(`Run cut named "${nameToLoad}" not found.`); console.warn("Load failed: Run cut not found in localStorage:", storageKey); return; } try { const loadedData = JSON.parse(savedDataString); if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.buses)) { runCutData = loadedData; runCutNameInput.value = runCutData.name || ''; console.log("Run Cut Loaded:", runCutData); renderAllBusRows(); saveCurrentEditorState(); showStatusMessage(runCutStatus, `Run cut "${nameToLoad}" loaded successfully.`); } else { alert(`Error: Data for "${nameToLoad}" is invalid.`); console.error("Load failed: Invalid data structure found:", loadedData); } } catch (e) { alert(`Error parsing data for "${nameToLoad}".`); console.error("Load failed: Error parsing JSON:", e); } }
+
+    // *** NEW: Handle Click on Delete Button inside Modal ***
+    function handleModalDeleteClick(event) {
+        const button = event.target;
+        const nameToDelete = button.dataset.runCutName;
+
+        if (!nameToDelete) {
+            console.error("Could not find run cut name on delete button:", button);
             return;
         }
-        runCutData.name = name;
-        try {
-            localStorage.setItem(`runCut_${name}`, JSON.stringify(runCutData));
-            console.log("Run Cut Saved:", runCutData);
-            showStatusMessage(runCutStatus, `Run cut "${name}" saved successfully!`);
-        } catch (e) {
-            console.error("Error saving run cut to Local Storage:", e);
-            showStatusMessage(runCutStatus, "Error saving run cut.", true);
-            alert("Error saving run cut. Local Storage might be full or disabled.");
+
+        if (confirm(`Are you sure you want to permanently delete the run cut named "${nameToDelete}"?`)) {
+            console.log(`Delete button clicked for: ${nameToDelete}`);
+            const storageKey = RUN_CUT_PREFIX + nameToDelete;
+            try {
+                localStorage.removeItem(storageKey);
+                console.log(`Removed item from localStorage: ${storageKey}`);
+
+                // Remove the corresponding list item from the modal UI
+                const listItemToRemove = button.closest('li'); // Find the parent <li>
+                if (listItemToRemove) {
+                    listItemToRemove.remove();
+                }
+
+                // Check if the list is now empty
+                const remainingItems = modalRunCutList.querySelectorAll('li');
+                if (remainingItems.length === 0) {
+                    modalRunCutList.innerHTML = '<p>No saved run cuts found.</p>';
+                }
+
+                // Optional: Show a status message on the main page
+                showStatusMessage(runCutStatus, `Run cut "${nameToDelete}" deleted.`);
+
+            } catch (e) {
+                console.error("Error removing item from localStorage:", e);
+                alert(`Could not delete run cut "${nameToDelete}". LocalStorage might be inaccessible.`);
+            }
+        } else {
+            console.log(`Deletion cancelled for: ${nameToDelete}`);
         }
     }
 
-    // TODO: Implement handleLoadRunCut function
+
+    // (handleClearRunCut - unchanged)
+    function handleClearRunCut() { if (confirm("Are you sure you want to clear the current schedule? Any unsaved changes will be lost.")) { console.log("Clearing current run cut..."); initializeEmptyRunCutData(); addBusRow(); renderAllBusRows(); showStatusMessage(runCutStatus, "Schedule cleared."); } else { console.log("Clear cancelled by user."); } }
+
+    // --- Simulation Logic ---
+    // (handleRunSimulation - unchanged)
+    function handleRunSimulation() { console.log("Run Simulation button clicked."); resultsOutput.innerHTML = '<p>Running simulation...</p>'; resultsContainer.style.display = 'block'; if (!loadBusParameters()) { resultsOutput.innerHTML = '<p style="color: red;">Simulation cancelled due to configuration errors.</p>'; return; } runCutData.name = runCutNameInput.value.trim(); if (typeof runSimulation !== 'function') { console.error("Simulation function 'runSimulation' not found."); resultsOutput.innerHTML = '<p style="color: red;">Critical Error: Simulation engine not loaded.</p>'; return; } const simulationResults = runSimulation(runCutData, currentBusParameters, availableChargers); displaySimulationResults(simulationResults); }
+    // (displaySimulationResults - unchanged, already displays energy totals)
+    function displaySimulationResults(results) { console.log("Displaying simulation results:", results); resultsOutput.innerHTML = ''; if (results.overallErrors && results.overallErrors.length > 0) { const errorList = document.createElement('ul'); results.overallErrors.forEach(err => { const item = document.createElement('li'); item.textContent = err; item.style.color = 'red'; errorList.appendChild(item); }); resultsOutput.appendChild(errorList); return; } if (!results.resultsPerBus || Object.keys(results.resultsPerBus).length === 0) { resultsOutput.innerHTML = '<p>Simulation ran, but no results were generated.</p>'; return; } for (const busId in results.resultsPerBus) { const busResult = results.resultsPerBus[busId]; const busDiv = document.createElement('div'); busDiv.style.marginBottom = '15px'; busDiv.style.borderBottom = '1px solid #eee'; busDiv.style.paddingBottom = '10px'; const title = document.createElement('h4'); title.textContent = `Bus: ${busId}`; busDiv.appendChild(title); if (busResult.errors && busResult.errors.length > 0) { const issueTitle = document.createElement('p'); issueTitle.textContent = 'Potential Issues / Warnings:'; issueTitle.style.fontWeight = 'bold'; busDiv.appendChild(issueTitle); const issueList = document.createElement('ul'); busResult.errors.forEach(errText => { const item = document.createElement('li'); item.textContent = errText; const lowerErrText = errText.toLowerCase(); if (lowerErrText.includes('stranded')) { item.style.color = 'red'; item.style.fontWeight = 'bold'; } else if (lowerErrText.includes('critical soc')) { item.style.color = 'red'; } else if (lowerErrText.includes('low soc warning')) { item.style.color = 'darkorange'; } else if (lowerErrText.includes('error')) { item.style.color = 'purple'; } issueList.appendChild(item); }); busDiv.appendChild(issueList); } else { const noIssues = document.createElement('p'); noIssues.textContent = 'No SOC warnings or schedule/config errors detected.'; noIssues.style.color = 'green'; busDiv.appendChild(noIssues); } if (busResult.socTimeSeries && busResult.socTimeSeries.length > 0) { const finalSOC = busResult.socTimeSeries[busResult.socTimeSeries.length - 1]; const minSOC = Math.min(...busResult.socTimeSeries); const summaryP = document.createElement('p'); summaryP.innerHTML = `Ending SOC: <strong>${finalSOC.toFixed(1)}%</strong> / Minimum SOC: <strong>${minSOC.toFixed(1)}%</strong>`; if (minSOC < (currentBusParameters?.warningThresholdCritical ?? 10)) { summaryP.querySelector('strong:last-of-type').style.color = 'red'; } else if (minSOC < (currentBusParameters?.warningThresholdLow ?? 20)) { summaryP.querySelector('strong:last-of-type').style.color = 'darkorange'; } busDiv.appendChild(summaryP); } else { busDiv.appendChild(document.createElement('p'). T="No SOC data generated."); } const energyP = document.createElement('p'); const consumed = busResult.totalEnergyConsumedKWh?.toFixed(1) || 'N/A'; const charged = busResult.totalEnergyChargedKWh?.toFixed(1) || 'N/A'; energyP.innerHTML = `Energy Consumed: <strong>${consumed} kWh</strong> / Energy Charged: <strong>${charged} kWh</strong>`; busDiv.appendChild(energyP); resultsOutput.appendChild(busDiv); } }
+    // (hideResults - unchanged)
+    function hideResults() { resultsContainer.style.display = 'none'; resultsOutput.innerHTML = ''; }
+
 
     // --- Helper functions for drag-select ---
-
-    function highlightRange() {
-        clearRangeSelection(); // Clear previous highlight
-        // Determine actual start/end regardless of drag direction
-        const startIndex = Math.min(dragStartTimeslot, dragCurrentEndTimeslot);
-        const endIndex = Math.max(dragStartTimeslot, dragCurrentEndTimeslot);
-
-        const busRow = gridTableBody.querySelector(`tr[data-bus-id="${dragStartBusId}"]`);
-        if (!busRow) return;
-
-        for (let i = startIndex; i <= endIndex; i++) {
-            const cell = busRow.querySelector(`td.time-slot[data-time-slot="${i}"]`);
-            if (cell) cell.classList.add('range-selected');
-        }
-    }
-
-    function clearRangeSelection() {
-        const selectedCells = gridTableBody.querySelectorAll('.time-slot.range-selected');
-        selectedCells.forEach(cell => cell.classList.remove('range-selected'));
-    }
+    // (highlightRange, clearRangeSelection - unchanged)
+    function highlightRange() { clearRangeSelection(); const startIndex = Math.min(dragStartTimeslot, dragCurrentEndTimeslot); const endIndex = Math.max(dragStartTimeslot, dragCurrentEndTimeslot); const busRow = gridTableBody.querySelector(`tr[data-bus-id="${dragStartBusId}"]`); if (!busRow) return; for (let i = startIndex; i <= endIndex; i++) { const cell = busRow.querySelector(`td.time-slot[data-time-slot="${i}"]`); if (cell) cell.classList.add('range-selected'); } }
+    function clearRangeSelection() { const selectedCells = gridTableBody.querySelectorAll('.time-slot.range-selected'); selectedCells.forEach(cell => cell.classList.remove('range-selected')); }
 
     // --- Utility ---
-    function showStatusMessage(element, message, isError = false) {
-        if (!element) return;
-        element.textContent = message;
-        element.style.color = isError ? 'red' : 'green';
-        setTimeout(() => {
-            // Ensure the message hasn't been overwritten before clearing
-            if (element.textContent === message) element.textContent = '';
-        }, 4000);
-    }
+    // (showStatusMessage - unchanged)
+    function showStatusMessage(element, message, isError = false) { if (!element) return; element.textContent = message; element.style.color = isError ? 'red' : 'green'; setTimeout(() => { if (element.textContent === message) element.textContent = ''; }, 4000); }
 
     // --- Start the application ---
     initializeEditor();
