@@ -6,17 +6,18 @@
 const NUM_TIME_SLOTS = 96;
 const SLOT_DURATION_MINUTES = 15;
 const SLOT_DURATION_HOURS = SLOT_DURATION_MINUTES / 60;
-const STRANDED_THRESHOLD = 5; // Fixed percentage below which bus is considered stranded
+const STRANDED_THRESHOLD = 5; // Fixed percentage
 
 /**
  * Runs the energy simulation.
  * @param {object} runCutData - The run cut data object.
  * @param {object} busParameters - Bus config including thresholds.
  * @param {array} availableChargers - Array of charger objects.
- * @returns {object} - Simulation results.
+ * @returns {object} - Simulation results including trigger times.
+ *                     Example: { resultsPerBus: { 'Bus-123': { socTimeSeries: [...], errors: [...], triggerTimes: { low: 40, critical: 55, stranded: 60 }, totalEnergyConsumedKWh: ..., totalEnergyChargedKWh: ... } }, overallErrors: [] }
  */
 function runSimulation(runCutData, busParameters, availableChargers) {
-    console.log("Starting simulation with tiered warnings & energy totals...");
+    console.log("Starting simulation with grid coloring data...");
 
     const results = { resultsPerBus: {}, overallErrors: [] };
 
@@ -36,38 +37,26 @@ function runSimulation(runCutData, busParameters, availableChargers) {
         const busResult = {
             socTimeSeries: [],
             errors: [],
-            totalEnergyConsumedKWh: 0, // Initialize here
-            totalEnergyChargedKWh: 0  // Initialize here
+            totalEnergyConsumedKWh: 0,
+            totalEnergyChargedKWh: 0,
+            // *** NEW: Store first trigger time index (null if not triggered) ***
+            triggerTimes: {
+                low: null,
+                critical: null,
+                stranded: null
+            }
         };
         results.resultsPerBus[bus.busId] = busResult;
 
         let currentSOC = bus.startSOC;
-        let warnedLow = false;
-        let warnedCritical = false;
-        let warnedStranded = false;
+        // Flags to prevent adding duplicate text warnings
+        let warnedLowText = false;
+        let warnedCriticalText = false;
+        let warnedStrandedText = false;
 
         // Loop through each time slot
         for (let i = 0; i < NUM_TIME_SLOTS; i++) {
             busResult.socTimeSeries.push(currentSOC); // Record SOC at START
-
-            // If SOC is already 0, the bus cannot run or discharge further.
-            // It can only BREAK or CHARGE.
-            if (currentSOC <= 0) {
-                const scheduleEntryCheck = bus.schedule[i];
-                const activityCheck = scheduleEntryCheck ? scheduleEntryCheck.activity : 'BREAK';
-                if (activityCheck === 'RUN') {
-                    // Attempted to run with 0 SOC - log an error *once* if needed, but no energy consumed.
-                    const timeStr = minutesToTimeSim(i * SLOT_DURATION_MINUTES);
-                    if (!warnedStranded) { // Use stranded flag to prevent repeated "cannot run" errors
-                        busResult.errors.push(`Stranded Alert at ${timeStr}: Attempted RUN with 0% SOC.`);
-                        warnedStranded = true; // Mark as stranded/warned
-                    }
-                    // Ensure no energy change and SOC remains 0
-                    // The main logic below will handle clamping, but this prevents negative consumption calc
-                }
-                 // Allow CHARGE or BREAK to proceed normally even if starting at 0 SOC
-            }
-
 
             const scheduleEntry = bus.schedule[i];
             const activity = scheduleEntry ? scheduleEntry.activity : 'BREAK';
@@ -75,73 +64,92 @@ function runSimulation(runCutData, busParameters, availableChargers) {
             const timeStr = minutesToTimeSim(i * SLOT_DURATION_MINUTES);
 
             let energyChangeKWh = 0;
-            let actualEnergyConsumedKWh = 0; // Track actual consumption this step
-            let actualEnergyChargedKWh = 0; // Track actual charge this step
+            let actualEnergyConsumedKWh = 0;
+            let actualEnergyChargedKWh = 0;
 
+            // Check for attempted RUN at 0 SOC first
+            if (currentSOC <= 0 && activity === 'RUN') {
+                 if (!warnedStrandedText) { // Only add text warning once
+                    busResult.errors.push(`Stranded Alert at ${timeStr}: Attempted RUN with 0% SOC.`);
+                    warnedStrandedText = true;
+                 }
+                 // If already stranded, ensure trigger time is set (might happen if starting SOC is < 5)
+                 if (busResult.triggerTimes.stranded === null) {
+                     busResult.triggerTimes.stranded = i; // Mark stranded time if not already
+                 }
+            }
 
             switch (activity) {
                 case 'RUN':
-                    // *** Corrected RUN Logic ***
-                    if (currentSOC > 0) { // Can only consume if SOC > 0
+                    if (currentSOC > 0) {
                         const theoreticalEnergyDemandKWh = euRate * SLOT_DURATION_HOURS;
-                        // Max energy available from current SOC down to 0
                         const maxAvailableEnergyKWh = (currentSOC / 100) * essCapacity;
-                        // Actual energy consumed is the minimum of demand and availability
                         actualEnergyConsumedKWh = Math.min(theoreticalEnergyDemandKWh, maxAvailableEnergyKWh);
-                        energyChangeKWh = -actualEnergyConsumedKWh; // Energy change is negative
-                        busResult.totalEnergyConsumedKWh += actualEnergyConsumedKWh; // Accumulate actual
+                        energyChangeKWh = -actualEnergyConsumedKWh;
+                        busResult.totalEnergyConsumedKWh += actualEnergyConsumedKWh;
                     } else {
-                        // Cannot run if SOC is 0 or less
-                        energyChangeKWh = 0;
-                        actualEnergyConsumedKWh = 0;
-                         // Warning for attempting to run at 0% is handled above the switch
+                        energyChangeKWh = 0; // Cannot consume if already at 0
                     }
-                    break; // *** End Corrected RUN ***
-
+                    break;
                 case 'CHARGE':
-                    // Calculate potential charge energy
                     let potentialChargeKWh = 0;
-                    if (chargerId) {
-                        const charger = availableChargers.find(ch => ch.id === chargerId);
-                        if (charger && typeof charger.rate === 'number' && charger.rate > 0) {
-                            potentialChargeKWh = charger.rate * SLOT_DURATION_HOURS;
-                        } else {
-                            // Config error handling (unchanged)
-                            if (!busResult.errors.some(e => e.includes(`Charger ID "${chargerId}" missing/invalid`))) { busResult.errors.push(`Config Error: Charger ID "${chargerId}" missing/invalid in configuration.`); } console.warn(`Bus ${bus.busId}, Time ${timeStr}: Charger ${chargerId} not found/invalid rate.`); potentialChargeKWh = 0;
-                        }
-                    } else {
-                        // Schedule error handling (unchanged)
-                         if (!busResult.errors.some(e => e.includes(`CHARGE activity at ${timeStr} has no charger`))) { busResult.errors.push(`Schedule Error at ${timeStr}: CHARGE activity has no charger assigned.`); } potentialChargeKWh = 0;
-                    }
-                    // Limit charge by available capacity up to 100%
+                    if (chargerId) { /* ... (charger finding logic unchanged) ... */
+                         const charger = availableChargers.find(ch => ch.id === chargerId);
+                         if (charger && typeof charger.rate === 'number' && charger.rate > 0) { potentialChargeKWh = charger.rate * SLOT_DURATION_HOURS; }
+                         else { if (!busResult.errors.some(e => e.includes(`Charger ID "${chargerId}" missing/invalid`))) { busResult.errors.push(`Config Error: Charger ID "${chargerId}" missing/invalid in configuration.`); } console.warn(`Bus ${bus.busId}, Time ${timeStr}: Charger ${chargerId} not found/invalid rate.`); potentialChargeKWh = 0; }
+                     } else { /* ... (no charger assigned error unchanged) ... */
+                          if (!busResult.errors.some(e => e.includes(`CHARGE activity at ${timeStr} has no charger`))) { busResult.errors.push(`Schedule Error at ${timeStr}: CHARGE activity has no charger assigned.`); } potentialChargeKWh = 0;
+                     }
                     const maxChargeToReach100 = ((100 - currentSOC) / 100) * essCapacity;
-                    actualEnergyChargedKWh = Math.min(potentialChargeKWh, maxChargeToReach100);
-                    energyChangeKWh = actualEnergyChargedKWh; // Energy change is positive
-                    busResult.totalEnergyChargedKWh += actualEnergyChargedKWh; // Accumulate actual
+                    actualEnergyChargedKWh = Math.min(potentialChargeKWh, Math.max(0, maxChargeToReach100)); // Ensure maxCharge is not negative if SOC > 100 somehow
+                    energyChangeKWh = actualEnergyChargedKWh;
+                    busResult.totalEnergyChargedKWh += actualEnergyChargedKWh;
                     break;
-
-                case 'BREAK':
-                default:
-                    energyChangeKWh = 0;
-                    break;
+                case 'BREAK': default: energyChangeKWh = 0; break;
             }
 
-            // Calculate SOC change based on *actual* energy transfer
             const socChange = (energyChangeKWh / essCapacity) * 100;
+            // Use a very small epsilon to handle floating point comparisons near thresholds
+            const epsilon = 0.00001;
             const potentialNextSOC = currentSOC + socChange;
 
-            // Check against thresholds *before* clamping (using potentialNextSOC)
-            // (Warning logic remains the same as before)
-            if (potentialNextSOC < STRANDED_THRESHOLD && !warnedStranded) { busResult.errors.push(`Stranded Alert at ${timeStr}: SOC dropped below ${STRANDED_THRESHOLD}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedStranded = true; }
-            else if (potentialNextSOC < criticalThreshold && !warnedCritical) { busResult.errors.push(`Critical SOC at ${timeStr}: SOC dropped below ${criticalThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedCritical = true; }
-            else if (potentialNextSOC < lowThreshold && !warnedLow) { busResult.errors.push(`Low SOC Warning at ${timeStr}: SOC dropped below ${lowThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedLow = true; }
+            // --- Check thresholds and record *first* trigger time index ---
+            // Stranded check
+            if (potentialNextSOC < STRANDED_THRESHOLD - epsilon && busResult.triggerTimes.stranded === null) {
+                busResult.triggerTimes.stranded = i; // Record time index
+                if (!warnedStrandedText) { // Add text warning only once
+                     busResult.errors.push(`Stranded Alert at ${timeStr}: SOC dropped below ${STRANDED_THRESHOLD}% (predicted ${potentialNextSOC.toFixed(1)}%)`);
+                     warnedStrandedText = true;
+                }
+            }
+            // Critical check (only if not already stranded)
+            if (potentialNextSOC < criticalThreshold - epsilon && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
+                 busResult.triggerTimes.critical = i;
+                 if (!warnedCriticalText) {
+                     busResult.errors.push(`Critical SOC at ${timeStr}: SOC dropped below ${criticalThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`);
+                     warnedCriticalText = true;
+                 }
+            }
+             // Low check (only if not already critical or stranded)
+            if (potentialNextSOC < lowThreshold - epsilon && busResult.triggerTimes.low === null && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
+                 busResult.triggerTimes.low = i;
+                 if (!warnedLowText) {
+                     busResult.errors.push(`Low SOC Warning at ${timeStr}: SOC dropped below ${lowThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`);
+                     warnedLowText = true;
+                 }
+            }
 
             // Update SOC for the *next* interval, applying constraints (0-100)
             currentSOC = Math.max(0, Math.min(100, potentialNextSOC)); // Clamp SOC
 
         } // End time slot loop
 
-        console.log(`Finished bus: ${bus.busId}. Final SOC: ${currentSOC.toFixed(1)}%. Consumed: ${busResult.totalEnergyConsumedKWh.toFixed(1)} kWh, Charged: ${busResult.totalEnergyChargedKWh.toFixed(1)} kWh`);
+        // Store final SOC in time series for potential display? Or rely on calculation?
+        // Let's add it for completeness - makes min/max easier later too.
+         busResult.socTimeSeries.push(currentSOC); // Add SOC state *after* last interval
+
+
+        console.log(`Finished bus: ${bus.busId}. Final SOC: ${currentSOC.toFixed(1)}%. Triggers: Low@${busResult.triggerTimes.low}, Crit@${busResult.triggerTimes.critical}, Strnd@${busResult.triggerTimes.stranded}`);
 
     }); // End bus loop
 
