@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Insights Dashboard</title>
+    <!-- Include Chart.js from a CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style> /* CSS is INLINE here */
+        body { font-family: sans-serif; margin: 20px; }
+        .chart-container { width: 80%; max-width: 700px; margin: 20px auto; }
+        .controls { margin-bottom: 20px; }
+        .controls label { margin-right: 5px; }
+        .controls input[type="date"], .controls button { padding: 5px; margin-right: 10px; }
+        .kpi-summaries { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;}
+        .kpi-summaries h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>EV Bus - Historical Insights Dashboard</h1>
+
+    <div class="controls">
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate">
+        <label for="endDate">End Date:</label>
+        <input type="date" id="endDate">
+        <button id="loadDataButton">Load Dashboard Data</button>
+    </div>
+
+    <div class="kpi-summaries">
+        <h3>Summary Stats</h3>
+        <p><strong>Overall Average Battery Charging Rate (Plausible Sessions):</strong> <span id="avgChargeRate">N/A</span> kW</p>
+        <p>(Based on SOC change, filtered for duration > 5min, SOC increase > 0.1%, power < 350kW)</p>
+    </div>
+
+    <div class="chart-container">
+        <h3>Average EU Rate (kW) by Temperature (Driving)</h3>
+        <canvas id="euByTempChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h3>Energy Breakdown by Activity Type (Average Power kW)</h3>
+        <canvas id="energyBreakdownChart"></canvas>
+    </div>
+
+    <script> /* JavaScript is INLINE here */
+        // ... (all the JavaScript code we developed for fetching data and rendering charts) ...
+        // ... (from the previous message containing the full insights.html) ...
+
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const loadDataButton = document.getElementById('loadDataButton');
+
+        let euByTempChartInstance = null;
+        let energyBreakdownChartInstance = null;
+
+        function recreateChartCanvas(chartId) {
+            const oldCanvas = document.getElementById(chartId);
+            if (oldCanvas) {
+                const parent = oldCanvas.parentNode;
+                parent.removeChild(oldCanvas);
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = chartId;
+                parent.appendChild(newCanvas);
+                return newCanvas.getContext('2d');
+            }
+            return null;
+        }
+
+        async function fetchAndDisplayEuByTemp(startDate, endDate) {
+            let url = '/api/kpi/average_eu_by_temp';
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error("Error fetching EU by Temp data:", response.statusText);
+                    // Consider how to display this error to the user on the page
+                    return;
+                }
+                const data = await response.json();
+
+                if (euByTempChartInstance) {
+                    euByTempChartInstance.destroy();
+                }
+                
+                const ctx = recreateChartCanvas('euByTempChart');
+                if (!ctx) return;
+
+                const labels = data.map(item => item.temperature_bin);
+                const euValues = data.map(item => item.avg_eu_kw);
+
+                euByTempChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Average EU (kW) Driving',
+                            data: euValues,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Average Power (kW)' }
+                            }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: true
+                    }
+                });
+            } catch (error) {
+                console.error("Error in fetchAndDisplayEuByTemp:", error);
+            }
+        }
+
+        async function fetchAndDisplayAvgChargeRate(startDate, endDate) {
+            let url = '/api/kpi/average_charging_rate';
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+            
+            try {
+                const response = await fetch(url);
+                 if (!response.ok) {
+                    console.error("Error fetching Avg Charge Rate data:", response.statusText);
+                    document.getElementById('avgChargeRate').textContent = 'Error';
+                    return;
+                }
+                const data = await response.json();
+                const avgChargeRateEl = document.getElementById('avgChargeRate');
+
+                if (data && data.avg_battery_charging_kw !== null && data.avg_battery_charging_kw !== undefined) {
+                    avgChargeRateEl.textContent = parseFloat(data.avg_battery_charging_kw).toFixed(2);
+                } else if (data && data.message) { // Display message from API (e.g., "No plausible sessions")
+                     avgChargeRateEl.textContent = data.message; 
+                }
+                else { // Fallback if data or specific key is missing
+                    avgChargeRateEl.textContent = 'N/A';
+                }
+            } catch (error) {
+                console.error("Error in fetchAndDisplayAvgChargeRate:", error);
+                document.getElementById('avgChargeRate').textContent = 'Error fetching';
+            }
+        }
+        
+        async function fetchAndDisplayEnergyBreakdown(startDate, endDate) {
+            let url = '/api/kpi/energy_breakdown_by_activity';
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error("Error fetching Energy Breakdown data:", response.statusText);
+                    return;
+                }
+                const data = await response.json(); 
+
+                if (energyBreakdownChartInstance) {
+                    energyBreakdownChartInstance.destroy();
+                }
+                const ctx = recreateChartCanvas('energyBreakdownChart');
+                if (!ctx) return;
+
+                const drivingData = data.find(d => d.activity_type === 'DRIVING') || {};
+                const idleData = data.find(d => d.activity_type === 'IDLE') || {};
+
+                const labels = [
+                    'Air Compressor (kW)', 
+                    'Rear HVAC (kW)', 
+                    'LV Access (kW)', 
+                    'Electric Heater (kW)', 
+                    'Traction (kW)'
+                ];
+
+                energyBreakdownChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'DRIVING - Avg Power (kW)',
+                                data: [
+                                    drivingData.avg_air_compressor_power_kw,
+                                    drivingData.avg_rear_hvac_power_kw,
+                                    drivingData.avg_lv_access_power_kw,
+                                    drivingData.avg_electric_heater_power_kw,
+                                    drivingData.avg_traction_power_kw_driving_only
+                                ],
+                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'IDLE - Avg Power (kW)',
+                                data: [
+                                    idleData.avg_air_compressor_power_kw,
+                                    idleData.avg_rear_hvac_power_kw,
+                                    idleData.avg_lv_access_power_kw,
+                                    idleData.avg_electric_heater_power_kw,
+                                    0 
+                                ],
+                                backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                                borderColor: 'rgba(255, 159, 64, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y', 
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Average Power (kW)' }
+                            }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: true 
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error in fetchAndDisplayEnergyBreakdown:", error);
+            }
+        }
+
+        function loadDashboardData() {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            console.log(`Loading data for range: ${startDate || 'all'} to ${endDate || 'all'}`);
+            fetchAndDisplayEuByTemp(startDate, endDate);
+            fetchAndDisplayAvgChargeRate(startDate, endDate);
+            fetchAndDisplayEnergyBreakdown(startDate, endDate);
+        }
+
+        loadDataButton.addEventListener('click', loadDashboardData);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Dashboard ready. Select date range and click 'Load Dashboard Data'.");
+        });
+    </script>
+</body>
+</html>
