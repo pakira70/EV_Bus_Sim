@@ -1,1 +1,0 @@
-web: gunicorn app:app --chdir bus_sim_back
