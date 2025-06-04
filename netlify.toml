@@ -7,7 +7,7 @@
 
 [build.environment]
   # This is an official way to set the Python version for Netlify builds
-  PYTHON_VERSION = "3.9" 
+  PYTHON_VERSION = "3.10" # Or try "3.11" or "3.12"
   # Let's try 3.9 first. It's older but extremely stable and widely supported.
   # If 3.9 also fails, we know it's something very strange.
   # Other options to try later if 3.9 fails: "3.10", "3.11", "3.8"
