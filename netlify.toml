@@ -1,13 +1,16 @@
 [build]
   command = "pip install -r requirements.txt"
-  publish = "bus_sim_back/static" # Or "." - this can be tweaked later. Let's use static for now.
-  # Functions directory - if you're not using Netlify serverless functions for Flask, OMIT this line
-  # or ensure it's pointing to an empty/non-conflicting directory.
-  # functions = "netlify/functions" # Comment this out or remove if not using.
+  # 'publish' can be your static directory, this is usually fine.
+  # It tells Netlify where to look if it's serving static files directly.
+  # Your Flask app will also serve static files via url_for, but Netlify's CDN can be faster for these.
+  publish = "bus_sim_back/static" 
+  
+  # CRITICAL: If you are NOT using Netlify Serverless Functions for your Flask app
+  # (and your Procfile indicates you want a Gunicorn server),
+  # REMOVE or COMMENT OUT any 'functions' line.
+  # functions = "netlify/functions" # <--- Try removing this line
 
 [build.environment]
-  # This is an official way to set the Python version for Netlify builds
-  PYTHON_VERSION = "3.10" # Or try "3.11" or "3.12"
-  # Let's try 3.9 first. It's older but extremely stable and widely supported.
-  # If 3.9 also fails, we know it's something very strange.
-  # Other options to try later if 3.9 fails: "3.10", "3.11", "3.8"
+  PYTHON_VERSION = "3.10" 
+  # You could also try more specific patch like "3.10.13" if "3.10" alone doesn't make it pick one.
+  # But since 3.10.18 was found for pip, "3.10" should be fine.
