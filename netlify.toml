@@ -1,0 +1,13 @@
+[build]
+  command = "pip install -r requirements.txt"
+  publish = "bus_sim_back/static" # Or "." - this can be tweaked later. Let's use static for now.
+  # Functions directory - if you're not using Netlify serverless functions for Flask, OMIT this line
+  # or ensure it's pointing to an empty/non-conflicting directory.
+  # functions = "netlify/functions" # Comment this out or remove if not using.
+
+[build.environment]
+  # This is an official way to set the Python version for Netlify builds
+  PYTHON_VERSION = "3.9" 
+  # Let's try 3.9 first. It's older but extremely stable and widely supported.
+  # If 3.9 also fails, we know it's something very strange.
+  # Other options to try later if 3.9 fails: "3.10", "3.11", "3.8"
