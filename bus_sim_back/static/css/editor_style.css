@@ -1,0 +1,158 @@
+/* --- Basic Editor Styles --- */
+.editor-controls button { margin-left: 5px; padding: 5px 10px; cursor: pointer; }
+.editor-controls input[type="text"] { padding: 5px; }
+.status-message { margin-left: 10px; font-style: italic; }
+
+/* --- Grid Container and Table Base --- */
+.schedule-grid-container { margin-top: 15px; max-height: 65vh; overflow: auto; border: 1px solid #ccc; }
+#schedule-grid { border-collapse: collapse; font-size: 0.8em; table-layout: fixed; /* Critical for sticky */ }
+
+/* --- General Cell Styling --- */
+#schedule-grid th,
+#schedule-grid td {
+    border: 1px solid #ddd;
+    padding: 4px 6px;   /* Default padding */
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    box-sizing: border-box; /* Include padding/border in width calculation */
+}
+
+/* --- Header Styling (Sticky Top & Above Sticky Columns) --- */
+#schedule-grid th {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+    z-index: 15 !important; /* Header on top */
+    font-weight: normal;
+}
+
+/* --- Define Column Widths Explicitly --- */
+/* These widths will be used for offsets */
+:root {
+    --col-width-name: 110px; /* <<< REDUCED Name Width */
+    --col-width-type: 70px;  /* <<< Current Type Width */
+    --col-width-soc:  80%;  /* <<< Current SOC Width */
+    --col-width-time: 30px;  /* <<< Current Time Slot Width */
+    --col-width-actions: 80px;/* <<< Current Actions Width */
+}
+
+/* --- COLUMN 1: Bus Name (Sticky Left Edge) --- */
+#schedule-grid th:nth-child(1),
+#schedule-grid td:nth-child(1) {
+    width: var(--col-width-name); /* Use variable */
+    min-width: var(--col-width-name); /* Prevent shrinking */
+    max-width: var(--col-width-name); /* Prevent growing */
+    position: sticky;
+    
+    left: 0px;
+    background-color: #f8f8f8;
+    z-index: 10;
+    text-align: left;
+    padding-left: 8px;
+}
+.bus-name-cell[contenteditable="true"] { cursor: text; background-color: #fff; outline: 1px dashed #ccc; }
+.bus-name-cell[contenteditable="true"]:focus { outline: 1px solid blue; background-color: #f0f8ff; }
+
+
+/* --- COLUMN 2: Type (Sticky Next to Column 1) --- */
+#schedule-grid th:nth-child(2),
+#schedule-grid td:nth-child(2) {
+    width: var(--col-width-type);
+    min-width: var(--col-width-type);
+    max-width: var(--col-width-type);
+    position: sticky;
+    /* Offset = Width of Col 1 */
+    left: var(--col-width-name); /* Use variable */
+    background-color: #f8f8f8;
+    z-index: 10;
+}
+.bus-type-select { padding: 2px; font-size: 0.8em; border: 1px solid #ccc; max-width: 100%; box-sizing: border-box;}
+
+
+/* --- COLUMN 3: Start SOC (Sticky Next to Column 2) --- */
+#schedule-grid th:nth-child(3),
+#schedule-grid td:nth-child(3) {
+    width: var(--col-width-soc);
+    min-width: var(--col-width-soc);
+    max-width: var(--col-width-soc);
+    position: sticky;
+    /* Offset = Width of Col 1 + Width of Col 2 */
+    left: calc(var(--col-width-name) + var(--col-width-type)); /* Use calc() for accuracy */
+    background-color: #f8f8f8;
+    z-index: 10;
+}
+/* SOC input style */
+.start-soc-input { padding: 2px; height: 24px;  font-size: 0.8em; border: 1px solid #ccc; max-width: 100%; box-sizing: border-box;}
+.start-soc-input::-webkit-outer-spin-button, .start-soc-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.start-soc-input:disabled { background-color: #eee; cursor: not-allowed; }
+
+
+/* --- COLUMNS 4 to 99: Time Slots (Scrolling) --- */
+/* Style Time Slot HEADERS (TH) */
+#schedule-grid th:nth-child(n+4):nth-child(-n+99) {
+    width: var(--col-width-time);
+    min-width: var(--col-width-time);
+    max-width: var(--col-width-time);
+    white-space: normal;
+    font-size: 0.7em;
+    line-height: 1.1;
+    padding-top: 2px; padding-bottom: 2px;
+    vertical-align: middle;
+}
+/* Style Time Slot DATA Cells (TD) */
+#schedule-grid td:nth-child(n+4):nth-child(-n+99) {
+    width: var(--col-width-time);
+    min-width: var(--col-width-time);
+    max-width: var(--col-width-time);
+    font-size: 0.8em;
+    cursor: cell;
+    padding-left: 2px; padding-right: 2px;
+}
+.time-slot.range-selected { background-color: rgba(0, 123, 255, 0.3) !important; outline: 1px dashed blue; }
+
+
+/* --- LAST COLUMN: Actions (Not Sticky) --- */
+#schedule-grid th:last-child,
+#schedule-grid td:last-child {
+    width: var(--col-width-actions);
+    min-width: var(--col-width-actions);
+    max-width: var(--col-width-actions);
+}
+.remove-bus-btn { padding: 2px 5px; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; cursor: pointer; border-radius: 3px; }
+
+
+/* --- Diesel Row Styling --- */
+.diesel-row { background-color: #fafafa; color: #333; }
+.diesel-row .bus-name-cell { font-style: italic; }
+
+
+/* --- Load Modal Styles (Keep Existing) --- */
+.modal-overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+.modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; position: relative; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); }
+.modal-close-btn { color: #aaa; position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; border: none; background: none; cursor: pointer; }
+.modal-close-btn:hover, .modal-close-btn:focus { color: black; text-decoration: none; }
+#modal-run-cut-list ul { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
+#modal-run-cut-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+#modal-run-cut-list li:last-child { border-bottom: none; }
+#modal-run-cut-list span { flex-grow: 1; margin-right: 10px; }
+#modal-run-cut-list button { padding: 5px 10px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 3px; }
+#modal-run-cut-list button:hover { background-color: #45a049; }
+#modal-run-cut-list button.delete-btn { background-color: #dc3545; margin-left: 8px; }
+#modal-run-cut-list button.delete-btn:hover { background-color: #c82333; }
+
+/* --- Simulation Results Styles --- */
+#simulation-results-container { margin-top: 20px; border: 1px solid #ccc; padding: 15px; display: none; background-color: #f9f9f9; }
+#simulation-results-container h2 { margin-top: 0; }
+#close-results-btn { float: right; padding: 3px 8px; cursor: pointer; }
+#simulation-output { clear: both; margin-top: 10px; }
+#simulation-output h4 { margin-bottom: 5px; margin-top: 10px; }
+#simulation-output ul { margin-top: 5px; padding-left: 20px; }
+#simulation-output p { margin: 5px 0; }
+
+/* --- Popover Styles --- */
+.popover { display: none; position: absolute; border: 1px solid black; background-color: white; padding: 15px; box-shadow: 3px 3px 5px rgba(0,0,0,0.3); z-index: 20; }
+.popover button { margin: 3px; }
+.popover hr { margin: 10px 0; }

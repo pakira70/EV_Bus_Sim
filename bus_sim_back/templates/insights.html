@@ -7,13 +7,20 @@
     <!-- Include Chart.js from a CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style> /* CSS is INLINE here */
-        body { font-family: sans-serif; margin: 20px; }
-        .chart-container { width: 80%; max-width: 700px; margin: 20px auto; }
-        .controls { margin-bottom: 20px; }
-        .controls label { margin-right: 5px; }
-        .controls input[type="date"], .controls button { padding: 5px; margin-right: 10px; }
-        .kpi-summaries { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;}
-        .kpi-summaries h3 { margin-top: 0; }
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        h1, h2, h3 { color: #2c3e50; }
+        .chart-container { width: 90%; max-width: 800px; margin: 30px auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .controls { margin-bottom: 30px; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; align-items: center; gap: 15px; }
+        .controls label { margin-right: 5px; font-weight: bold; }
+        .controls input[type="date"], .controls button { padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc; }
+        .controls button { background-color: #3498db; color: white; cursor: pointer; border-color: #3498db; }
+        .controls button:hover { background-color: #2980b9; }
+        .kpi-summaries { margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; background-color: #fdfdfd; border-radius: 6px;}
+        .kpi-summaries h3 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .kpi-summaries p { margin: 8px 0; }
+        .kpi-summaries strong { color: #555; }
+        #periodAnalysisSection { margin-top: 30px; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        hr { border: 0; height: 1px; background-color: #ddd; margin: 40px 0; }
     </style>
 </head>
 <body>
@@ -42,29 +49,159 @@
         <h3>Energy Breakdown by Activity Type (Average Power kW)</h3>
         <canvas id="energyBreakdownChart"></canvas>
     </div>
+    
+    <hr>
+
+    <div id="periodAnalysisSection">
+        <h2>Period Performance Analysis</h2>
+        <p><em>Provides an overview of fleet performance and temperature profile for the selected date range.</em></p>
+
+        <div class="kpi-summaries">
+            <h3>Operational Summary (Driving)</h3>
+            <p><strong>Overall Average EU Rate:</strong> <span id="pa_avg_eu_kw">N/A</span> kW</p>
+            <p><strong>Overall Average EU Economy:</strong> <span id="pa_avg_kwh_per_mile">N/A</span> kWh/mile</p>
+            <p><strong>Total Driving Segments:</strong> <span id="pa_count_driving_segments">N/A</span></p>
+            <p><strong>Total Driving Miles:</strong> <span id="pa_total_driving_miles">N/A</span> miles</p>
+            <p><strong>Total Driving Duration:</strong> <span id="pa_total_driving_duration_hours">N/A</span> hours</p>
+            <p><strong>Avg Regen Power (during driving with regen):</strong> <span id="pa_avg_regen_kw">N/A</span> kW</p>
+            <p><strong>Avg Regen Economy (overall driving):</strong> <span id="pa_avg_regen_kwh_per_mile">N/A</span> kWh/mile</p>
+        </div>
+
+        <div class="kpi-summaries">
+            <h3>Charging Summary</h3>
+            <p><strong>Overall Average Charging Rate (Plausible Sessions):</strong> <span id="pa_avg_charging_rate_kw">N/A</span> kW</p>
+            <p><strong>Number of Plausible Charging Sessions:</strong> <span id="pa_num_charging_sessions">N/A</span></p>
+        </div>
+
+        <div class="kpi-summaries">
+            <h3>Temperature Profile of the Period</h3>
+            <p><strong>Absolute Coldest Segment Temp:</strong> <span id="pa_abs_coldest_temp">N/A</span> °F</p>
+            <p><strong>Absolute Hottest Segment Temp:</strong> <span id="pa_abs_hottest_temp">N/A</span> °F</p>
+            <p><strong>Average of Daily Minimum Temps:</strong> <span id="pa_avg_daily_min_temp">N/A</span> °F</p>
+            <p><strong>Average of Daily Maximum Temps:</strong> <span id="pa_avg_daily_max_temp">N/A</span> °F</p>
+        </div>
+
+        <div class="chart-container">
+            <h3>Daily Average Temperature Distribution</h3>
+            <canvas id="dailyTempDistributionChart"></canvas>
+        </div>
+    </div>
 
     <script> /* JavaScript is INLINE here */
-        // ... (all the JavaScript code we developed for fetching data and rendering charts) ...
-        // ... (from the previous message containing the full insights.html) ...
+        let euByTempChartInstance = null;
+        let energyBreakdownChartInstance = null;
+        let dailyTempDistributionChartInstance = null; 
 
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
         const loadDataButton = document.getElementById('loadDataButton');
 
-        let euByTempChartInstance = null;
-        let energyBreakdownChartInstance = null;
+        async function fetchAndDisplayPeriodAnalysis(startDate, endDate) {
+            let url = '/api/period_analysis/summary';
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error("Error fetching Period Analysis data:", response.status, response.statusText);
+                    document.getElementById('pa_avg_eu_kw').textContent = 'Error'; 
+                    // Clear other fields similarly or show a general error message for the section
+                    return;
+                }
+                const data = await response.json();
+
+                const updateText = (id, value, toFixedDigits = 2, suffix = '') => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        if (value !== null && value !== undefined && !isNaN(parseFloat(value))) {
+                            el.textContent = parseFloat(value).toFixed(toFixedDigits) + suffix;
+                        } else {
+                            el.textContent = value === null || value === undefined ? 'N/A' : String(value);
+                        }
+                    }
+                };
+
+                updateText('pa_avg_eu_kw', data.overall_avg_eu_kw);
+                updateText('pa_avg_kwh_per_mile', data.overall_avg_kwh_per_mile, 3);
+                updateText('pa_count_driving_segments', data.count_driving_segments, 0);
+                updateText('pa_total_driving_miles', data.total_driving_miles);
+                updateText('pa_total_driving_duration_hours', data.total_driving_duration_hours);
+                updateText('pa_avg_regen_kw', data.overall_avg_regen_kw_driving);
+                updateText('pa_avg_regen_kwh_per_mile', data.overall_avg_regen_kwh_per_mile_driving, 3);
+
+                updateText('pa_avg_charging_rate_kw', data.overall_avg_charging_rate_kw);
+                updateText('pa_num_charging_sessions', data.num_plausible_charging_sessions, 0);
+                
+                updateText('pa_abs_coldest_temp', data.absolute_coldest_segment_temp_f, 1, ' °F');
+                updateText('pa_abs_hottest_temp', data.absolute_hottest_segment_temp_f, 1, ' °F');
+                updateText('pa_avg_daily_min_temp', data.avg_daily_min_temp_f, 1, ' °F');
+                updateText('pa_avg_daily_max_temp', data.avg_daily_max_temp_f, 1, ' °F');
+
+                if (dailyTempDistributionChartInstance) {
+                    dailyTempDistributionChartInstance.destroy();
+                }
+                const distCtx = recreateChartCanvas('dailyTempDistributionChart');
+                if (distCtx && data.daily_avg_temp_distribution && data.daily_avg_temp_distribution.length > 0) {
+                    const distLabels = data.daily_avg_temp_distribution.map(item => item.temperature_bin);
+                    const distCounts = data.daily_avg_temp_distribution.map(item => item.day_count);
+
+                    dailyTempDistributionChartInstance = new Chart(distCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: distLabels,
+                            datasets: [{
+                                label: 'Number of Days',
+                                data: distCounts,
+                                backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                                borderColor: 'rgba(153, 102, 255, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Number of Days' }
+                                },
+                                x: {
+                                     title: { display: true, text: 'Daily Average Temperature Bin (°F)' }
+                                }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: true
+                        }
+                    });
+                } else if (distCtx) { 
+                     distCtx.font = "16px Arial";
+                     distCtx.textAlign = "center";
+                     distCtx.fillText("No temperature distribution data for selected period.", distCtx.canvas.width / 2, distCtx.canvas.height / 2);
+                }
+
+            } catch (error) {
+                console.error("Error in fetchAndDisplayPeriodAnalysis:", error);
+                document.getElementById('pa_avg_eu_kw').textContent = 'Error processing';
+            }
+        }
 
         function recreateChartCanvas(chartId) {
             const oldCanvas = document.getElementById(chartId);
             if (oldCanvas) {
                 const parent = oldCanvas.parentNode;
-                parent.removeChild(oldCanvas);
+                // It's better to replace the node than remove and append,
+                // especially if there are event listeners or complex structures.
+                // However, for a simple canvas, remove/append is fine.
                 const newCanvas = document.createElement('canvas');
                 newCanvas.id = chartId;
-                parent.appendChild(newCanvas);
+                parent.replaceChild(newCanvas, oldCanvas);
                 return newCanvas.getContext('2d');
             }
-            return null;
+            return null; // Should ideally not happen if HTML is correct
         }
 
         async function fetchAndDisplayEuByTemp(startDate, endDate) {
@@ -81,7 +218,7 @@
                 const response = await fetch(url);
                 if (!response.ok) {
                     console.error("Error fetching EU by Temp data:", response.statusText);
-                    // Consider how to display this error to the user on the page
+                    // Consider clearing the chart or showing an error on the canvas
                     return;
                 }
                 const data = await response.json();
@@ -93,32 +230,41 @@
                 const ctx = recreateChartCanvas('euByTempChart');
                 if (!ctx) return;
 
-                const labels = data.map(item => item.temperature_bin);
-                const euValues = data.map(item => item.avg_eu_kw);
+                if (data && data.length > 0) {
+                    const labels = data.map(item => item.temperature_bin);
+                    const euValues = data.map(item => item.avg_eu_kw);
 
-                euByTempChartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Average EU (kW) Driving',
-                            data: euValues,
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: { display: true, text: 'Average Power (kW)' }
-                            }
+                    euByTempChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Average EU (kW) Driving',
+                                data: euValues,
+                                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }]
                         },
-                        responsive: true,
-                        maintainAspectRatio: true
-                    }
-                });
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Average Power (kW)' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Temperature Bin (°F)'}
+                                }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: true
+                        }
+                    });
+                } else if (ctx) {
+                    ctx.font = "16px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("No EU by Temperature data for selected period.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                }
             } catch (error) {
                 console.error("Error in fetchAndDisplayEuByTemp:", error);
             }
@@ -146,10 +292,10 @@
 
                 if (data && data.avg_battery_charging_kw !== null && data.avg_battery_charging_kw !== undefined) {
                     avgChargeRateEl.textContent = parseFloat(data.avg_battery_charging_kw).toFixed(2);
-                } else if (data && data.message) { // Display message from API (e.g., "No plausible sessions")
+                } else if (data && data.message) {
                      avgChargeRateEl.textContent = data.message; 
                 }
-                else { // Fallback if data or specific key is missing
+                else {
                     avgChargeRateEl.textContent = 'N/A';
                 }
             } catch (error) {
@@ -182,62 +328,68 @@
                 const ctx = recreateChartCanvas('energyBreakdownChart');
                 if (!ctx) return;
 
-                const drivingData = data.find(d => d.activity_type === 'DRIVING') || {};
-                const idleData = data.find(d => d.activity_type === 'IDLE') || {};
+                if (data && data.length > 0) {
+                    const drivingData = data.find(d => d.activity_type === 'DRIVING') || {};
+                    const idleData = data.find(d => d.activity_type === 'IDLE') || {};
 
-                const labels = [
-                    'Air Compressor (kW)', 
-                    'Rear HVAC (kW)', 
-                    'LV Access (kW)', 
-                    'Electric Heater (kW)', 
-                    'Traction (kW)'
-                ];
+                    const labels = [
+                        'Air Compressor (kW)', 
+                        'Rear HVAC (kW)', 
+                        'LV Access (kW)', 
+                        'Electric Heater (kW)', 
+                        'Traction (kW)'
+                    ];
 
-                energyBreakdownChartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'DRIVING - Avg Power (kW)',
-                                data: [
-                                    drivingData.avg_air_compressor_power_kw,
-                                    drivingData.avg_rear_hvac_power_kw,
-                                    drivingData.avg_lv_access_power_kw,
-                                    drivingData.avg_electric_heater_power_kw,
-                                    drivingData.avg_traction_power_kw_driving_only
-                                ],
-                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                                borderColor: 'rgba(75, 192, 192, 1)',
-                                borderWidth: 1
-                            },
-                            {
-                                label: 'IDLE - Avg Power (kW)',
-                                data: [
-                                    idleData.avg_air_compressor_power_kw,
-                                    idleData.avg_rear_hvac_power_kw,
-                                    idleData.avg_lv_access_power_kw,
-                                    idleData.avg_electric_heater_power_kw,
-                                    0 
-                                ],
-                                backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                                borderColor: 'rgba(255, 159, 64, 1)',
-                                borderWidth: 1
-                            }
-                        ]
-                    },
-                    options: {
-                        indexAxis: 'y', 
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                title: { display: true, text: 'Average Power (kW)' }
-                            }
+                    energyBreakdownChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'DRIVING - Avg Power (kW)',
+                                    data: [
+                                        drivingData.avg_air_compressor_power_kw,
+                                        drivingData.avg_rear_hvac_power_kw,
+                                        drivingData.avg_lv_access_power_kw,
+                                        drivingData.avg_electric_heater_power_kw,
+                                        drivingData.avg_traction_power_kw_driving_only
+                                    ].map(val => val === undefined ? 0 : val), // Ensure 0 if undefined
+                                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'IDLE - Avg Power (kW)',
+                                    data: [
+                                        idleData.avg_air_compressor_power_kw,
+                                        idleData.avg_rear_hvac_power_kw,
+                                        idleData.avg_lv_access_power_kw,
+                                        idleData.avg_electric_heater_power_kw,
+                                        0 // Traction is 0 for IDLE
+                                    ].map(val => val === undefined ? 0 : val), // Ensure 0 if undefined
+                                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                                    borderColor: 'rgba(255, 159, 64, 1)',
+                                    borderWidth: 1
+                                }
+                            ]
                         },
-                        responsive: true,
-                        maintainAspectRatio: true 
-                    }
-                });
+                        options: {
+                            indexAxis: 'y', 
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Average Power (kW)' }
+                                }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: true 
+                        }
+                    });
+                } else if(ctx) {
+                    ctx.font = "16px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("No energy breakdown data for selected period.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                }
 
             } catch (error) {
                 console.error("Error in fetchAndDisplayEnergyBreakdown:", error);
@@ -247,17 +399,23 @@
         function loadDashboardData() {
             const startDate = startDateInput.value;
             const endDate = endDateInput.value;
+
             console.log(`Loading data for range: ${startDate || 'all'} to ${endDate || 'all'}`);
+            
             fetchAndDisplayEuByTemp(startDate, endDate);
-            fetchAndDisplayAvgChargeRate(startDate, endDate);
+            fetchAndDisplayAvgChargeRate(startDate, endDate); 
             fetchAndDisplayEnergyBreakdown(startDate, endDate);
+            fetchAndDisplayPeriodAnalysis(startDate, endDate); 
         }
 
-        loadDataButton.addEventListener('click', loadDashboardData);
+        // Add event listener to the button
+        if (loadDataButton) {
+            loadDataButton.addEventListener('click', loadDashboardData);
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("Dashboard ready. Select date range and click 'Load Dashboard Data'.");
-        });
+        // Optionally, load data on initial page load if desired (e.g., with no date filters)
+        // document.addEventListener('DOMContentLoaded', loadDashboardData);
+
     </script>
 </body>
 </html>

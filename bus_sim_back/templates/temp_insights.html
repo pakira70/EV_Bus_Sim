@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature-Based EV Bus Insights</title>
+    <p style="text-align: center; margin-bottom: 20px;">
+            <a href="{{ url_for('index') }}">← Go to Configuration</a> | 
+            <a href="{{ url_for('editor') }}">Go to Run/Charge Schedule Editor →</a>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script> 
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 0; background-color: #f4f7f6; color: #333; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+        h2 { text-align: center; color: #34495e; margin-top: 40px; margin-bottom: 20px; border-bottom: 1px solid #e0e0e0; padding-bottom: 10px;}
+        
+        .controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px 25px; margin-bottom: 30px; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .controls label { font-weight: 600; margin-right: 5px; }
+        .controls input[type="number"] { width: 80px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; }
+        .controls button { padding: 10px 22px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background-color 0.2s ease; }
+        .controls button:hover { background-color: #2980b9; }
+        
+        .infographic-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .kpi-card h3 { margin-top: 0; color: #34495e; font-size: 1.1em; margin-bottom: 8px; }
+        .kpi-card .value, .kpi-card .value-like { font-size: 2.2em; font-weight: 700; color: #2980b9; margin: 8px 0; line-height: 1.1; }
+        .kpi-card .unit { font-size: 0.9em; color: #7f8c8d; margin-bottom: 8px;}
+        .kpi-card .sub-text { font-size: 0.8em; color: #95a5a6; margin-top: 0px; margin-bottom: 8px; }
+        .kpi-card .all-time-avg, .kpi-card .all-time-avg-inline { font-size: 0.85em; color: #888; margin-top: 8px; }
+        .kpi-card .all-time-avg-inline { display: block; margin-top: 4px; }
+        /* Removed .fleet-spread and .all-time-fleet-spread as they are no longer used for economy */
+
+        .value.better, .value-like.better { color: #27ae60 !important; }
+        .value.worse, .value-like.worse { color: #c0392b !important; }
+        .value.similar, .value-like.similar { color: #2980b9 !important; }
+        .value-like { font-weight: bold; }
+
+        .charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; align-items: flex-start; }
+        .chart-box { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .chart-box h3 {text-align: center; margin-top:0; font-size: 1.2em;}
+        .chart-box canvas { max-width: 100%; height: auto; max-height: 380px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Temperature-Based EV Bus Performance</h1>
+
+        <div class="controls">
+            <label for="lowTemp">Low Temp (°F):</label>
+            <input type="number" id="lowTemp" value="30" step="1"> 
+            <label for="highTemp">High Temp (°F):</label>
+            <input type="number" id="highTemp" value="70" step="1">
+            <label for="essCapacityInput">Bus ESS (kWh):</label>
+            <input type="number" id="essCapacityInput" value="450" step="10">
+            <button id="analyzeTempButton">Analyze</button>
+        </div>
+
+        <h2>Performance Snapshot (All Buses)</h2>
+        <div class="infographic-layout">
+            <div class="kpi-card">
+                <h3>Energy Use</h3>
+                <div class="value" id="avgPowerRun">N/A</div>
+                <div class="unit">kW (kWh/hr)</div>
+                <p class="all-time-avg">All-time: <span id="avgPowerRunAllTime">N/A</span> kW</p>
+            </div>
+            <div class="kpi-card">
+                <h3>Energy Use / Mile</h3> <!-- RENAMED -->
+                <div class="value" id="avgEconomyRun">N/A</div>
+                <div class="unit">kWh/mile</div>
+                <p class="all-time-avg">All-time: <span id="avgEconomyRunAllTime">N/A</span> kWh/mile</p>
+                <!-- Removed fleet-spread and all-time-fleet-spread -->
+            </div>
+            <div class="kpi-card">
+                <h3>Est. Range (Hours)</h3>
+                <p class="sub-text">(at 85% Usable SOC)</p>
+                <div class="value" id="estRangeHours">N/A</div>
+                <div class="unit">hours</div>
+                <p class="all-time-avg">All-time: <span id="estRangeHoursAllTime">N/A</span> hours</p>
+            </div>
+            <div class="kpi-card">
+                <h3>Est. Range (Miles)</h3>
+                <p class="sub-text">(at 85% Usable SOC)</p>
+                <div class="value" id="estRangeMiles">N/A</div>
+                <div class="unit">miles</div>
+                <p class="all-time-avg">All-time: <span id="estRangeMilesAllTime">N/A</span> miles</p>
+            </div>
+            <div class="kpi-card">
+                <h3>Avg. Charge Rate</h3>
+                <p class="sub-text">(Overall Plausible Sessions)</p>
+                <div class="value" id="avgChargeRate">N/A</div>
+                <div class="unit">kW</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Est. Time to Full</h3>
+                <p class="sub-text">(15% to <span id="targetSOCDisplay">N/A</span>% SOC)</p>
+                <div class="value" id="timeToFull">N/A</div>
+                <div class="unit">hours</div>
+            </div>
+        </div>
+
+        <h2>Energy Insights (RUN Activity)</h2>
+        <div class="charts-container">
+            <div class="chart-box">
+                <h3>Energy Consumption Breakdown (Avg. Power kW)</h3>
+                <canvas id="energyBreakdownDoughnutChart"></canvas>
+            </div>
+            <div class="kpi-card"> 
+                <h3>Regeneration Performance</h3>
+                <p style="margin-top: 20px;"><strong>Avg. Regen Power:</strong> <br><span id="avgRegenPower" class="value-like">N/A</span> kW 
+                    <span class="all-time-avg-inline">(All-time: <span id="avgRegenPowerAllTime">N/A</span> kW)</span></p>
+                <p style="margin-top: 20px;"><strong>Regen as % of Traction Energy:</strong> <br><span id="regenPercentTraction" class="value-like">N/A</span> %
+                    <span class="all-time-avg-inline">(All-time: <span id="regenPercentTractionAllTime">N/A</span> %)</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+        Chart.defaults.set('plugins.datalabels', {
+            color: '#FFFFFF',
+            font: {
+                weight: 'bold',
+                size: 11, 
+            },
+            formatter: function(value, context) {
+                if (value <= 0.01 && context.chart.config.type !== 'doughnut') return null;
+                if (value <= 0.001 && context.chart.config.type === 'doughnut') return ''; // Hide extremely small doughnut values
+
+                const kValue = value.toFixed(1) + ' kW';
+                let percentageString = '';
+                
+                if (context.chart.config.type === 'doughnut') {
+                    const sum = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    if (sum > 0) {
+                        const percentage = ((value / sum) * 100);
+                        if (percentage < 1 && percentage > 0.01) { 
+                             percentageString = percentage.toFixed(1) + '%';
+                        } else if (percentage >=1 ){
+                             percentageString = percentage.toFixed(0) + '%';
+                        } else {
+                            return ''; // Don't display label if percentage is too small
+                        }
+                    } else {
+                        return ''; // Don't display if sum is 0
+                    }
+                    return `${percentageString}\n(${kValue})`;
+                }
+                return kValue; 
+            },
+            display: function(context) {
+                if (context.chart.config.type === 'doughnut') {
+                    const sum = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    if (sum === 0) return false; // Don't display if total is zero
+                    return context.dataset.data[context.dataIndex] / sum > 0.03; // Display if slice is > 3% of total
+                }
+                return true; 
+            },
+            textShadowBlur: 1,
+            textShadowColor: 'rgba(0,0,0,0.7)'
+        });
+
+        const lowTempInput = document.getElementById('lowTemp');
+        const highTempInput = document.getElementById('highTemp');
+        const essCapacityInput = document.getElementById('essCapacityInput');
+        const analyzeButton = document.getElementById('analyzeTempButton');
+
+        const avgPowerRunEl = document.getElementById('avgPowerRun');
+        const avgEconomyRunEl = document.getElementById('avgEconomyRun');
+        // economyFleetSpreadEl removed
+        const estRangeHoursEl = document.getElementById('estRangeHours');
+        const estRangeMilesEl = document.getElementById('estRangeMiles');
+        const avgChargeRateEl = document.getElementById('avgChargeRate');
+        const timeToFullEl = document.getElementById('timeToFull');
+        const targetSOCDisplayEl = document.getElementById('targetSOCDisplay');
+        
+        const avgRegenPowerEl = document.getElementById('avgRegenPower');
+        const regenPercentTractionEl = document.getElementById('regenPercentTraction');
+
+        const avgPowerRunAllTimeEl = document.getElementById('avgPowerRunAllTime');
+        const avgEconomyRunAllTimeEl = document.getElementById('avgEconomyRunAllTime');
+        // economyFleetSpreadAllTimeEl removed
+        const estRangeHoursAllTimeEl = document.getElementById('estRangeHoursAllTime'); 
+        const estRangeMilesAllTimeEl = document.getElementById('estRangeMilesAllTime'); 
+        const avgRegenPowerAllTimeEl = document.getElementById('avgRegenPowerAllTime');
+        const regenPercentTractionAllTimeEl = document.getElementById('regenPercentTractionAllTime');
+
+        let energyBreakdownChartInstance = null;
+
+        function updateText(element, value, toFixedDigits = 1, suffix = '', notAvailable = 'N/A') {
+            if (element) {
+                if (value !== null && value !== undefined && !isNaN(parseFloat(value))) {
+                    element.textContent = parseFloat(value).toFixed(toFixedDigits) + suffix;
+                } else {
+                    element.textContent = notAvailable;
+                }
+            }
+        }
+        
+        function applyColorCoding(element, currentValue, allTimeValue, lowerIsBetter, similarityThresholdPercent = 5) {
+            if (!element) return;
+            element.classList.remove('better', 'worse', 'similar'); 
+
+            if (currentValue === null || allTimeValue === null || isNaN(currentValue) || isNaN(allTimeValue) ) {
+                element.classList.add('similar'); 
+                return;
+            }
+             if (allTimeValue === 0 && currentValue === 0) {
+                element.classList.add('similar');
+                return;
+            }
+            if (allTimeValue === 0 && currentValue !== 0) { 
+                element.classList.add(lowerIsBetter ? 'worse' : 'better'); 
+                return;
+            }
+
+            const difference = currentValue - allTimeValue;
+            const percentageDifference = Math.abs(difference / allTimeValue) * 100;
+
+            if (percentageDifference <= similarityThresholdPercent) {
+                element.classList.add('similar');
+            } else if (lowerIsBetter) {
+                if (currentValue < allTimeValue) element.classList.add('better');
+                else element.classList.add('worse');
+            } else { 
+                if (currentValue > allTimeValue) element.classList.add('better');
+                else element.classList.add('worse');
+            }
+        }
+
+        function recreateDoughnutChartCanvas(chartId) {
+            const oldCanvas = document.getElementById(chartId);
+            if (oldCanvas) {
+                const parent = oldCanvas.parentNode;
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = chartId;
+                parent.replaceChild(newCanvas, oldCanvas);
+                return newCanvas.getContext('2d');
+            }
+            return null;
+        }
+        
+        async function analyzeTemperaturePerformance() {
+            const lowTemp = lowTempInput.value;
+            const highTemp = highTempInput.value;
+            let busESSCapacity = parseFloat(essCapacityInput.value);
+
+            if (isNaN(busESSCapacity) || busESSCapacity <= 0) {
+                busESSCapacity = parseFloat(localStorage.getItem('busESSCapacity'));
+                if (isNaN(busESSCapacity) || busESSCapacity <= 0) {
+                    busESSCapacity = 450; 
+                    essCapacityInput.value = busESSCapacity;
+                    console.warn("Using default ESS Capacity: " + busESSCapacity + " kWh");
+                } else {
+                     essCapacityInput.value = busESSCapacity;
+                }
+            } else {
+                 localStorage.setItem('busESSCapacity', busESSCapacity.toString());
+            }
+
+            console.log(`Analyzing for temp range: ${lowTemp}°F - ${highTemp}°F with ESS: ${busESSCapacity} kWh`);
+            
+            try {
+                const response = await fetch(`/api/temp_insights_data?low_temp=${lowTemp}&high_temp=${highTemp}`);
+                if (!response.ok) {
+                    console.error("Error fetching temperature insights data:", response.status, response.statusText);
+                    alert("Error fetching data from server. Check console for details.");
+                    return;
+                }
+                const data = await response.json();
+                console.log("Received data from API for temp performance:", data);
+
+                // Temperature-Filtered Values
+                const runDuration = data.total_run_duration_hours;
+                const runEnergy = data.total_run_energy_kwh;
+                const runMiles = data.total_run_mileage_miles;
+
+                const avgPowerRun = (runDuration > 0 && runEnergy !== null) ? (runEnergy / runDuration) : null;
+                const avgEconomyRun = (runMiles > 0 && runEnergy !== null) ? (runEnergy / runMiles) : null;
+                
+                updateText(avgPowerRunEl, avgPowerRun);
+                updateText(avgEconomyRunEl, avgEconomyRun, 2);
+                // economyFleetSpreadEl related calls removed
+
+                const usableEnergy = busESSCapacity * 0.85;
+                const estRangeHours = (avgPowerRun > 0) ? (usableEnergy / avgPowerRun) : null;
+                const estRangeMiles = (avgEconomyRun > 0) ? (usableEnergy / avgEconomyRun) : null;
+                
+                updateText(estRangeHoursEl, estRangeHours);
+                updateText(estRangeMilesEl, estRangeMiles, 0);
+
+                updateText(avgChargeRateEl, data.avg_charge_rate_kw);
+                updateText(targetSOCDisplayEl, data.data_driven_max_soc_percent, 1);
+                
+                if (data.avg_charge_rate_kw > 0 && data.data_driven_max_soc_percent !== null) {
+                    const energyToCharge = (data.data_driven_max_soc_percent / 100 - 0.15) * busESSCapacity;
+                    if (energyToCharge > 0) {
+                        const timeToFullVal = energyToCharge / data.avg_charge_rate_kw;
+                        updateText(timeToFullEl, timeToFullVal);
+                    } else {
+                        updateText(timeToFullEl, 0, 1);
+                    }
+                } else {
+                    updateText(timeToFullEl, null);
+                }
+
+                const avgRegenPwrTempFiltered = (data.total_run_regen_kwh !== null && runDuration > 0) ? data.total_run_regen_kwh / runDuration : null;
+                updateText(avgRegenPowerEl, avgRegenPwrTempFiltered);
+                const regenPercentTempFiltered = (data.run_total_traction_kwh > 0 && data.total_run_regen_kwh !== null) ? (data.total_run_regen_kwh / data.run_total_traction_kwh) * 100 : null;
+                updateText(regenPercentTractionEl, regenPercentTempFiltered, 1, '%');
+
+                // All-Time Averages & Color Coding
+                updateText(avgPowerRunAllTimeEl, data.all_time_avg_power_run_kw);
+                applyColorCoding(avgPowerRunEl, avgPowerRun, data.all_time_avg_power_run_kw, true);
+
+                updateText(avgEconomyRunAllTimeEl, data.all_time_avg_economy_run_kwh_per_mile, 2);
+                applyColorCoding(avgEconomyRunEl, avgEconomyRun, data.all_time_avg_economy_run_kwh_per_mile, true);
+                // economyFleetSpreadAllTimeEl related calls removed
+
+                const allTimeAvgPower = data.all_time_avg_power_run_kw;
+                const allTimeAvgEconomy = data.all_time_avg_economy_run_kwh_per_mile;
+                const estRangeHoursAllTime = (allTimeAvgPower > 0) ? (usableEnergy / allTimeAvgPower) : null;
+                const estRangeMilesAllTime = (allTimeAvgEconomy > 0) ? (usableEnergy / allTimeAvgEconomy) : null;
+                updateText(estRangeHoursAllTimeEl, estRangeHoursAllTime);
+                updateText(estRangeMilesAllTimeEl, estRangeMilesAllTime, 0);
+                applyColorCoding(estRangeHoursEl, estRangeHours, estRangeHoursAllTime, false);
+                applyColorCoding(estRangeMilesEl, estRangeMiles, estRangeMilesAllTime, false);
+
+                applyColorCoding(avgChargeRateEl, data.avg_charge_rate_kw, data.avg_charge_rate_kw, false, 0); 
+                
+                updateText(avgRegenPowerAllTimeEl, data.all_time_avg_regen_power_kw);
+                applyColorCoding(avgRegenPowerEl, avgRegenPwrTempFiltered, data.all_time_avg_regen_power_kw, false);
+                
+                updateText(regenPercentTractionAllTimeEl, data.all_time_regen_percent_traction, 1, '%');
+                applyColorCoding(regenPercentTractionEl, regenPercentTempFiltered, data.all_time_regen_percent_traction, false);
+
+                // Energy Breakdown Doughnut Chart
+                if (energyBreakdownChartInstance) {
+                    energyBreakdownChartInstance.destroy();
+                }
+                const doughnutCtx = recreateDoughnutChartCanvas('energyBreakdownDoughnutChart');
+                if (doughnutCtx && runDuration > 0 && data.run_total_traction_kwh !== null) {
+                    const breakdownLabels = ['Traction', 'Heater', 'HVAC', 'Air Comp.', 'LV Acc.'];
+                    const breakdownDataKw = [
+                        (data.run_total_traction_kwh !== null) ? data.run_total_traction_kwh  / runDuration : 0,
+                        (data.run_total_heater_kwh  !== null) ? data.run_total_heater_kwh    / runDuration : 0,
+                        (data.run_total_hvac_kwh     !== null) ? data.run_total_hvac_kwh      / runDuration : 0,
+                        (data.run_total_ac_kwh       !== null) ? data.run_total_ac_kwh        / runDuration : 0,
+                        (data.run_total_lv_kwh       !== null) ? data.run_total_lv_kwh        / runDuration : 0
+                    ].map(val => (isNaN(parseFloat(val))) ? 0 : parseFloat(val)); // Ensure it's a number, default to 0
+                    
+                    const filteredLabels = [];
+                    const filteredValues = [];
+                    breakdownDataKw.forEach((value, index) => {
+                        if (value > 0.001) { 
+                            filteredLabels.push(breakdownLabels[index]);
+                            filteredValues.push(value);
+                        }
+                    });
+
+                    if (filteredValues.length > 0) {
+                        energyBreakdownChartInstance = new Chart(doughnutCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: filteredLabels,
+                                datasets: [{
+                                    label: 'Avg. Power (kW) during RUN',
+                                    data: filteredValues,
+                                    backgroundColor: ['#FF6384','#FF9F40','#FFCE56','#4BC0C0','#36A2EB','#9966FF'],
+                                    borderColor: '#fff',
+                                    borderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '50%',
+                                plugins: {
+                                    legend: { position: 'right', labels: { padding: 15, boxWidth: 12, font: {size: 10} } },
+                                    title: { display: false },
+                                    datalabels: { /* Uses global defaults */ }
+                                }
+                            }
+                        });
+                    } else {
+                         doughnutCtx.font = "16px Arial"; doughnutCtx.textAlign = "center";
+                         doughnutCtx.fillText("No significant energy breakdown components.", doughnutCtx.canvas.width / 2, doughnutCtx.canvas.height / 2);
+                    }
+                } else if (doughnutCtx) {
+                     doughnutCtx.font = "16px Arial"; doughnutCtx.textAlign = "center";
+                     doughnutCtx.fillText("No RUN activity data for breakdown.", doughnutCtx.canvas.width / 2, doughnutCtx.canvas.height / 2);
+                }
+
+            } catch (error) {
+                console.error("Error in analyzeTemperaturePerformance:", error);
+                alert("An error occurred while analyzing data. Check console.");
+            }
+        }
+        
+        analyzeButton.addEventListener('click', analyzeTemperaturePerformance);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const storedESSCapacity = localStorage.getItem('busESSCapacity');
+            if (storedESSCapacity && !isNaN(parseFloat(storedESSCapacity))) {
+                essCapacityInput.value = parseFloat(storedESSCapacity);
+            }
+        });
+    </script>
+</body>
+</html>
