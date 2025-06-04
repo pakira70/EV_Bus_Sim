@@ -1,16 +1,9 @@
 [build]
-  command = "pip install -r requirements.txt"
-  # 'publish' can be your static directory, this is usually fine.
-  # It tells Netlify where to look if it's serving static files directly.
-  # Your Flask app will also serve static files via url_for, but Netlify's CDN can be faster for these.
+  # This command will first install dependencies, THEN try to start Gunicorn.
+  # Gunicorn must be started in a way that Netlify keeps the process running to serve requests.
+  # The $PORT variable is provided by Netlify's environment.
+  command = "pip install -r requirements.txt && gunicorn app:app --chdir bus_sim_back --bind 0.0.0.0:$PORT --log-level debug"
   publish = "bus_sim_back/static" 
-  
-  # CRITICAL: If you are NOT using Netlify Serverless Functions for your Flask app
-  # (and your Procfile indicates you want a Gunicorn server),
-  # REMOVE or COMMENT OUT any 'functions' line.
-  # functions = "netlify/functions" # <--- Try removing this line
 
 [build.environment]
-  PYTHON_VERSION = "3.10" 
-  # You could also try more specific patch like "3.10.13" if "3.10" alone doesn't make it pick one.
-  # But since 3.10.18 was found for pip, "3.10" should be fine.
+  PYTHON_VERSION = "3.10" # Or 3.11 if 3.10 still gives issues, but 3.10 installed fine last time.
