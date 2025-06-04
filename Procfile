@@ -1,0 +1,1 @@
+web: gunicorn app:app --chdir bus_sim_back --bind 0.0.0.0:$PORT --log-level debug

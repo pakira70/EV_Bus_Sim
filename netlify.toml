@@ -1,9 +1,6 @@
 [build]
-  # This command will first install dependencies, THEN try to start Gunicorn.
-  # Gunicorn must be started in a way that Netlify keeps the process running to serve requests.
-  # The $PORT variable is provided by Netlify's environment.
-  command = "pip install -r requirements.txt && gunicorn app:app --chdir bus_sim_back --bind 0.0.0.0:$PORT --log-level debug"
+  command = "pip install -r requirements.txt" # ONLY install dependencies here
   publish = "bus_sim_back/static" 
 
 [build.environment]
-  PYTHON_VERSION = "3.10" # Or 3.11 if 3.10 still gives issues, but 3.10 installed fine last time.
+  PYTHON_VERSION = "3.10" # This version installed fine
