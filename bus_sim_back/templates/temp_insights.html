@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temperature-Based EV Bus Insights</title>
-    <p style="text-align: center; margin-bottom: 20px;">
-            <a href="{{ url_for('index') }}">← Go to Configuration</a> | 
-            <a href="{{ url_for('editor') }}">Go to Run/Charge Schedule Editor →</a>
+<p style="text-align: center; margin-bottom: 20px;">
+    <a href="{{ url_for('index') }}">← Go to Configuration</a> | 
+    <a href="{{ url_for('editor') }}">Go to Schedule Editor</a> |
+    <a href="{{ url_for('analytics') }}">Go to NEW Fleet Analytics →</a>
+</p>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script> 
     <style>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Fleet Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/nouislider/distribute/nouislider.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 1600px; margin: 20px auto; padding: 0 20px; }
+        h1, h2 { text-align: center; color: #2c3e50; }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px; }
+        .hidden { display: none !important; }
+
+        .control-deck { padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .control-row { display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; gap: 20px; }
+        .control-group { flex: 1; min-width: 250px; }
+        .control-group label { display: block; font-weight: 600; margin-bottom: 8px; }
+        .control-group input[type="number"] { width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .select2-container .select2-selection--multiple { border: 1px solid #ccc !important; border-radius: 4px !important; min-height: 38px !important; }
+        .noUi-target { background: #e9e9e9; border-radius: 4px; border: none; box-shadow: inset 0 1px 1px #f0f0f0, 0 3px 6px -5px #bbb; }
+        .noUi-connect { background: #3498db; }
+        .noUi-handle { border-radius: 50%; background: #FFF; box-shadow: 0 0 1px rgba(0,0,0,0.5); cursor: pointer; border: none; }
+        .noUi-handle:focus, .noUi-handle:active { outline: none; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.4); }
+        .noUi-handle::before, .noUi-handle::after { display: none; }
+        .noUi-tooltip { font-size: 0.8em; font-weight: 600; }
+
+        .snapshot-table { width: 100%; border-collapse: collapse; background-color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        .snapshot-table th, .snapshot-table td { padding: 15px; text-align: center; border-bottom: 1px solid #e0e0e0; }
+        .snapshot-table th { background-color: #34495e; color: white; font-size: 1.1em; }
+        .snapshot-table td { font-size: 1.2em; }
+        .snapshot-table tr:last-child td { border-bottom: none; }
+        .snapshot-table td:first-child { text-align: left; font-weight: 600; color: #34495e; }
+        .snapshot-value { font-size: 1.5em; font-weight: 700; display: block; }
+        .snapshot-sub-text { font-size: 0.8em; color: #7f8c8d; }
+        .text-green { color: #27ae60 !important; }
+        .text-red { color: #c0392b !important; }
+
+        .chart-box {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-canvas-wrapper {
+            position: relative;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        
+        #cardWrapper {
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: center;
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .comparison-column {
+            flex-grow: 0;
+            flex-shrink: 0;
+            flex-basis: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .kpi-card { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        .kpi-card h3 { margin-top: 0; margin-bottom: 15px; color: #34495e; font-size: 1.1em; }
+        .regen-bar-container { position: relative; height: 30px; background-color: #ecf0f1; border-radius: 15px; overflow: hidden; }
+        .regen-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background-color: #27ae60; border-radius: 15px; transition: width 0.5s ease-in-out; }
+        .regen-bar-text { position: absolute; width: 100%; left: 0; top: 50%; transform: translateY(-50%); color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EV Fleet Analytics</h1>
+        <p style="text-align: center; margin-bottom: 20px;"><a href="{{ url_for('index') }}">← Config</a> | <a href="{{ url_for('temp_insights_page') }}">Old Insights →</a></p>
+
+        <div class="control-deck">
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Filter by Temperature (°F): <span id="tempValueLower" style="font-weight:bold;">10°F</span> - <span id="tempValueUpper" style="font-weight:bold;">90°F</span></label>
+                    <div id="tempSlider"></div>
+                </div>
+                <div class="control-group"><label for="busSelector">Highlight Buses</label><select id="busSelector" multiple="multiple" style="width: 100%;"></select></div>
+                <div class="control-group" style="flex-grow: 0.5; min-width: 150px;"><label for="essCapacityInput">ESS Capacity (kWh)</label><input type="number" id="essCapacityInput" value="450" step="10"></div>
+            </div>
+        </div>
+
+        <h2>Fleet Snapshot</h2>
+        <table class="snapshot-table">
+            <thead>
+                <tr><th>Metric</th><th>Fleet Average</th><th>Most Efficient</th><th>Least Efficient</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Avg. Energy Use<br><span class="snapshot-sub-text">(kW)</span></td>
+                    <td id="s-fleet-power">--</td>
+                    <td id="s-best-power">--</td>
+                    <td id="s-worst-power">--</td>
+                </tr>
+                <tr><td>Est. Range (Hours)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-h">--</td><td id="s-best-range-h">--</td><td id="s-worst-range-h">--</td></tr>
+                <tr><td>Avg. Economy<br><span class="snapshot-sub-text">(kWh/mile)</span></td><td id="s-fleet-economy">--</td><td id="s-best-economy">--</td><td id="s-worst-economy">--</td></tr>
+                <tr><td>Est. Range (Miles)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-m">--</td><td id="s-best-range-m">--</td><td id="s-worst-range-m">--</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Bus Comparison (Avg. Energy Use)</h2>
+        <div class="chart-box" id="mainBarChartContainer"><canvas id="busComparisonBarChart"></canvas></div>
+
+        <div id="detailBreakdownContainer" class="hidden">
+            <h2>Detailed Breakdown</h2>
+            <div id="cardWrapper"></div>
+        </div>
+        
+        <div id="timeSeriesContainer" class="hidden">
+            <h2>Efficiency Trend Over Time</h2>
+            <div class="chart-box"><canvas id="timeSeriesChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- JS Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nouislider/distribute/nouislider.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tempSliderEl = document.getElementById('tempSlider');
+        const busSelector = $('#busSelector');
+        const essCapacityInput = document.getElementById('essCapacityInput');
+        let busComparisonBarChart, timeSeriesChartInstance;
+
+        const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
+
+        async function updateDashboard() {
+            const tempValues = tempSliderEl.noUiSlider.get(true);
+            const selectedBuses = busSelector.val() || [];
+            let essCapacity = parseFloat(essCapacityInput.value) || 450;
+            localStorage.setItem('busESSCapacity', essCapacity);
+            
+            const params = new URLSearchParams({ low_temp: tempValues[0], high_temp: tempValues[1] });
+            try {
+                const response = await fetch(`/api/fleet_analytics_data?${params}`);
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                const data = await response.json();
+                
+                updateSnapshotTable(data.snapshot_kpis, data.fleet_metrics_by_bus, essCapacity);
+                updateBusComparisonBarChart(data.fleet_metrics_by_bus, selectedBuses);
+                updateDetailBreakdown(data.fleet_metrics_by_bus, selectedBuses);
+                updateTimeSeriesChart(selectedBuses, tempValues);
+                
+                if (busSelector.find("option").length === 0 && data.bus_list) {
+                    data.bus_list.forEach(bus => busSelector.append(new Option(bus, bus, false, false)));
+                    busSelector.trigger('change');
+                }
+            } catch (error) { console.error("Failed to update dashboard:", error); }
+        }
+
+        function createMetricHTML(value, unit, comparisonValue, lowerIsBetter = true) {
+            let colorClass = '';
+            if (comparisonValue !== undefined && value !== '--' && parseFloat(value) !== parseFloat(comparisonValue)) {
+                colorClass = (parseFloat(value) < parseFloat(comparisonValue)) ? (lowerIsBetter ? 'text-green' : 'text-red') : (lowerIsBetter ? 'text-red' : 'text-green');
+            }
+            return `<span class="snapshot-value ${colorClass}">${value}</span><span class="snapshot-sub-text">${unit}</span>`;
+        }
+        
+        function updateSnapshotTable(kpis, busData, essCapacity) {
+            const usableEnergy = essCapacity * 0.85;
+            const { fleet_avg_power, fleet_avg_economy, best_bus_by_power_id, worst_bus_by_power_id, best_bus_by_economy_id, worst_bus_by_economy_id } = kpis;
+            
+            const bestPowerBusData = busData[best_bus_by_power_id] || {};
+            const worstPowerBusData = busData[worst_bus_by_power_id] || {};
+            const bestEconBusData = busData[best_bus_by_economy_id] || {};
+            const worstEconBusData = busData[worst_bus_by_economy_id] || {};
+
+            const addBusId = (id) => id ? `<span class="snapshot-sub-text">(Bus ${id})</span>` : '';
+
+            document.getElementById('s-fleet-power').innerHTML = createMetricHTML(formatNumber(fleet_avg_power, 2), '');
+            document.getElementById('s-best-power').innerHTML = createMetricHTML(formatNumber(bestPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(best_bus_by_power_id);
+            document.getElementById('s-worst-power').innerHTML = createMetricHTML(formatNumber(worstPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(worst_bus_by_power_id);
+            
+            const rangeH = p => p > 0 ? usableEnergy / p : 0;
+            document.getElementById('s-fleet-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(fleet_avg_power), 1), 'hours');
+            document.getElementById('s-best-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(bestPowerBusData.avg_power_kw), 1), 'hours', rangeH(fleet_avg_power), false) + addBusId(best_bus_by_power_id);
+            document.getElementById('s-worst-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(worstPowerBusData.avg_power_kw), 1), 'hours', rangeH(fleet_avg_power), false) + addBusId(worst_bus_by_power_id);
+
+            document.getElementById('s-fleet-economy').innerHTML = createMetricHTML(formatNumber(fleet_avg_economy, 2), '');
+            document.getElementById('s-best-economy').innerHTML = createMetricHTML(formatNumber(bestEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(best_bus_by_economy_id);
+            document.getElementById('s-worst-economy').innerHTML = createMetricHTML(formatNumber(worstEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(worst_bus_by_economy_id);
+            
+            const rangeM = e => e > 0 ? usableEnergy / e : 0;
+            document.getElementById('s-fleet-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(fleet_avg_economy), 0), 'miles');
+            document.getElementById('s-best-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(bestEconBusData.avg_economy_kwh_per_mile), 0), 'miles', rangeM(fleet_avg_economy), false) + addBusId(best_bus_by_economy_id);
+            document.getElementById('s-worst-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(worstEconBusData.avg_economy_kwh_per_mile), 0), 'miles', rangeM(fleet_avg_economy), false) + addBusId(worst_bus_by_economy_id);
+        }
+
+        function updateBusComparisonBarChart(busData, selectedBuses) {
+            const sortedBuses = Object.entries(busData).sort((a, b) => a[1].avg_power_kw - b[1].avg_power_kw);
+            const labels = sortedBuses.map(entry => entry[0]);
+            const data = sortedBuses.map(entry => entry[1].avg_power_kw);
+            const backgroundColors = sortedBuses.map(entry => selectedBuses.includes(entry[0]) ? '#3498db' : '#bdc3c7');
+
+            if (busComparisonBarChart) busComparisonBarChart.destroy();
+            busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
+                type: 'bar',
+                data: { 
+                    labels: labels,
+                    datasets: [{ label: 'Avg. Energy Use (kW)', data: data, backgroundColor: backgroundColors }]
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false }, datalabels: { display: false } } 
+                }
+            });
+            const chartContainer = document.getElementById('mainBarChartContainer');
+            const chartHeight = Math.max(400, labels.length * 25);
+            chartContainer.style.height = `${chartHeight}px`;
+        }
+        
+        function updateDetailBreakdown(busData, selectedBuses) {
+            const container = document.getElementById('detailBreakdownContainer');
+            const cardWrapper = document.getElementById('cardWrapper'); 
+            
+            if (selectedBuses.length === 0) {
+                container.classList.add('hidden');
+                cardWrapper.innerHTML = '';
+                return;
+            }
+            container.classList.remove('hidden');
+            cardWrapper.innerHTML = '';
+            
+            selectedBuses.forEach(busId => {
+                const busMetrics = busData[busId];
+                cardWrapper.insertAdjacentHTML('beforeend', createComparisonColumnHTML(busId, busMetrics));
+                if (busMetrics && busMetrics.avg_power_kw > 0) {
+                    createDonutChart(`donut-${busId}`, busMetrics.breakdown_kw);
+                }
+            });
+        }
+
+        function createComparisonColumnHTML(title, metrics) {
+             if (!metrics || metrics.avg_power_kw === 0) {
+                return `<div class="comparison-column"><div class="chart-box" style="justify-content:center; align-items:center;"><h3>Bus ${title}</h3><p>No driving data available for the selected temperature range.</p></div></div>`;
+             }
+            const regenPercent = formatNumber(metrics.regen_offset_percent, 1);
+            return `
+                <div class="comparison-column">
+                    <div class="chart-box">
+                        <h3>Bus ${title}</h3>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="donut-${title}"></canvas>
+                        </div>
+                    </div>
+                    <div class="kpi-card"><h3>Regen Performance</h3>
+                        <div class="regen-bar-container"><div class="regen-bar-fill" style="width: ${regenPercent}%;"></div><div class="regen-bar-text">${regenPercent}%</div></div>
+                    </div>
+                </div>`;
+        }
+
+        function createDonutChart(canvasId, data) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if (!ctx) return;
+            const filteredLabels = Object.keys(data).filter(key => data[key] > 0.01);
+            const filteredData = filteredLabels.map(key => data[key]);
+            
+            if (filteredData.length === 0) {
+                ctx.font = "16px Arial"; ctx.textAlign = "center";
+                ctx.fillText("No breakdown data.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: filteredLabels, datasets: [{ data: filteredData, backgroundColor: ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'] }] },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    cutout: '50%', 
+                    plugins: { 
+                        legend: { display: false }, 
+                        datalabels: { 
+                            color: '#fff', 
+                            font: { weight: 'bold' }, 
+                            formatter: (v, c) => `${(v / c.chart.getDatasetMeta(0).total * 100).toFixed(0)}%` 
+                        } 
+                    } 
+                }
+            });
+        }
+
+        async function updateTimeSeriesChart(selectedBuses, tempFilter) {
+            const container = document.getElementById('timeSeriesContainer');
+            if (selectedBuses.length !== 1) {
+                container.classList.add('hidden'); return;
+            }
+            container.classList.remove('hidden');
+
+            const params = new URLSearchParams({ low_temp: tempFilter[0], high_temp: tempFilter[1], timeseries_bus: selectedBuses[0] });
+            const response = await fetch(`/api/fleet_analytics_data?${params}`);
+            const data = await response.json();
+
+            if (timeSeriesChartInstance) timeSeriesChartInstance.destroy();
+            timeSeriesChartInstance = new Chart(document.getElementById('timeSeriesChart'), {
+                type: 'line',
+                data: { datasets: [{
+                    label: `Bus ${selectedBuses[0]}`,
+                    data: data.map(d => ({ x: d.date, y: d.avg_power_kw })),
+                    borderColor: '#3498db', backgroundColor: '#3498db',
+                }]},
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        x: { type: 'time', time: { unit: 'month' } }, 
+                        y: { title: { display: true, text: 'Avg. Energy Use (kW)' } } 
+                    }, 
+                    plugins: { datalabels: { display: false } } 
+                }
+            });
+        }
+
+        function initializeControls() {
+            noUiSlider.create(tempSliderEl, {
+                start: [10, 90], connect: true, range: { 'min': 10, 'max': 90 }, step: 5,
+                tooltips: [
+                    { to: function(value) { return `${Math.round(value)}°F` } },
+                    { to: function(value) { return `${Math.round(value)}°F` } }
+                ]
+            });
+            tempSliderEl.noUiSlider.on('update', (values, handle, unencoded) => {
+                document.getElementById('tempValueLower').textContent = `${Math.round(unencoded[0])}°F`;
+                document.getElementById('tempValueUpper').textContent = `${Math.round(unencoded[1])}°F`;
+            });
+            tempSliderEl.noUiSlider.on('change', updateDashboard);
+            
+            busSelector.select2({ placeholder: 'Highlight buses & see details', allowClear: true });
+            busSelector.on('change', updateDashboard);
+            
+            const storedESS = localStorage.getItem('busESSCapacity');
+            if (storedESS) essCapacityInput.value = storedESS;
+            essCapacityInput.addEventListener('change', updateDashboard);
+        }
+
+        Chart.register(ChartDataLabels);
+        initializeControls();
+        updateDashboard();
+    });
+    </script>
+</body>
+</html>
