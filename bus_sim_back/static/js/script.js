@@ -1,3 +1,24 @@
+// --- NEW: Navigation Link Handler ---
+// This part runs first to set up the "active" link style on page load.
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('.main-nav .nav-link');
+    if (!navLinks.length) return; // Exit if nav doesn't exist on this page
+
+    const currentPath = window.location.pathname;
+
+    navLinks.forEach(link => {
+        const linkPath = new URL(link.href).pathname;
+        
+        if (linkPath === '/' && (currentPath === '/' || currentPath.endsWith('/index.html'))) {
+             link.classList.add('active');
+        } else if (linkPath !== '/' && currentPath.startsWith(linkPath)) {
+            link.classList.add('active');
+        }
+    });
+});
+
+
+// --- YOUR ORIGINAL, WORKING SCRIPT.JS CODE ---
 document.addEventListener('DOMContentLoaded', function() {
     // --- DOM Element References ---
     const essCapacityInput = document.getElementById('ess-capacity');
@@ -12,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const busParamsContent = document.getElementById('bus-params-content');
     const chargerSetupContent = document.getElementById('charger-setup-content');
 
-    // Charger Setup Elements (basic setup, expand with your full logic)
+    // Charger Setup Elements
     const addChargerBtn = document.getElementById('add-charger-btn');
     const chargerFormContainer = document.getElementById('charger-form-container');
     const chargerIdInput = document.getElementById('charger-id-input');
@@ -55,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
             displayStatus(busParamsStatus, "Error: Invalid ESS Capacity.", true);
             return;
         }
-        if (isNaN(euRate) || euRate < 0) { // Allow 0 for EU rate if bus is just idling with no load
+        if (isNaN(euRate) || euRate < 0) {
             displayStatus(busParamsStatus, "Error: Invalid EU Rate.", true);
             return;
         }
@@ -71,11 +92,10 @@ document.addEventListener('DOMContentLoaded', function() {
             displayStatus(busParamsStatus, "Error: Low SOC warning must be higher than Critical SOC.", true);
             return;
         }
-         if (criticalSOC < 5) { // As per your helper text
+         if (criticalSOC < 5) {
             displayStatus(busParamsStatus, "Error: Critical SOC warning should be >= 5%.", true);
             return;
         }
-
 
         try {
             localStorage.setItem('busESSCapacity', essCapacity.toString());
@@ -116,14 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
             tabBusParams.classList.remove('active');
             busParamsContent.classList.remove('active');
         }
-        // Hide charger form when switching tabs unless explicitly shown
         if (chargerFormContainer) chargerFormContainer.style.display = 'none';
     }
 
-    // --- Charger Functions (Simplified - integrate your full logic) ---
     function renderChargers() {
         if (!chargerListContainer) return;
-        chargerListContainer.innerHTML = ''; // Clear existing list
+        chargerListContainer.innerHTML = '';
         if (chargers.length === 0) {
             chargerListContainer.innerHTML = '<p>No chargers configured yet.</p>';
             return;
@@ -135,11 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const editBtn = document.createElement('button');
             editBtn.textContent = 'Edit';
+            editBtn.classList.add('action-btn-small'); // <<< ADDED THIS CLASS
             editBtn.onclick = () => editCharger(index);
             li.appendChild(editBtn);
 
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
+            deleteBtn.classList.add('action-btn-small'); // <<< ADDED THIS CLASS
             deleteBtn.style.marginLeft = '5px';
             deleteBtn.onclick = () => deleteCharger(index);
             li.appendChild(deleteBtn);
@@ -151,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showChargerForm(chargerData = null, index = -1) {
         if (!chargerFormContainer || !chargerIdInput || !chargerNameInput || !chargerRateInput) return;
-        chargerIdInput.value = index; // Use index as ID for simplicity
+        chargerIdInput.value = index;
         chargerNameInput.value = chargerData ? chargerData.name : '';
         chargerRateInput.value = chargerData ? chargerData.rate : '';
         chargerFormContainer.style.display = 'block';
@@ -175,9 +195,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const newCharger = { name, rate };
-        if (id === -1) { // New charger
+        if (id === -1) {
             chargers.push(newCharger);
-        } else { // Editing existing
+        } else {
             chargers[id] = newCharger;
         }
         localStorage.setItem('chargers', JSON.stringify(chargers));
@@ -199,7 +219,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-
     function loadChargers() {
         console.log("Loading chargers from localStorage...");
         const storedChargers = localStorage.getItem('chargers');
@@ -208,11 +227,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 chargers = JSON.parse(storedChargers);
             } catch (e) {
                 console.error("Error parsing stored chargers:", e);
-                chargers = []; // Reset if data is corrupt
-                localStorage.removeItem('chargers'); // Clear corrupt data
+                chargers = [];
+                localStorage.removeItem('chargers');
             }
         } else {
-            chargers = []; // Default to empty if nothing stored
+            chargers = [];
         }
         renderChargers();
         console.log("Chargers loaded:", chargers);
@@ -242,8 +261,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Initial Load ---
-    loadBusParameters();
-    loadChargers();
-    switchTab('bus-params'); // Ensure bus params tab is active on load
-
+    if (document.getElementById('bus-params-content')) {
+        loadBusParameters();
+        loadChargers();
+        switchTab('bus-params');
+    }
 });

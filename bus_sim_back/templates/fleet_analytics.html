@@ -4,20 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EV Fleet Analytics</title>
+    <!-- Main stylesheet for consistent navigation -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Libraries specific to this page -->
     <link href="https://cdn.jsdelivr.net/npm/nouislider/distribute/nouislider.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
-        .container { max-width: 1600px; margin: 20px auto; padding: 0 20px; }
-        h1, h2 { text-align: center; color: #2c3e50; }
-        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px; }
-        .hidden { display: none !important; }
-
-        .control-deck { padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .control-row { display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; gap: 20px; }
-        .control-group { flex: 1; min-width: 250px; }
-        .control-group label { display: block; font-weight: 600; margin-bottom: 8px; }
-        .control-group input[type="number"] { width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        /* These are styles specific to the analytics page */
         .select2-container .select2-selection--multiple { border: 1px solid #ccc !important; border-radius: 4px !important; min-height: 38px !important; }
         .noUi-target { background: #e9e9e9; border-radius: 4px; border: none; box-shadow: inset 0 1px 1px #f0f0f0, 0 3px 6px -5px #bbb; }
         .noUi-connect { background: #3498db; }
@@ -26,7 +20,7 @@
         .noUi-handle::before, .noUi-handle::after { display: none; }
         .noUi-tooltip { font-size: 0.8em; font-weight: 600; }
 
-        .snapshot-table { width: 100%; border-collapse: collapse; background-color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        .snapshot-table { width: 100%; border-collapse: collapse; background-color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 30px;}
         .snapshot-table th, .snapshot-table td { padding: 15px; text-align: center; border-bottom: 1px solid #e0e0e0; }
         .snapshot-table th { background-color: #34495e; color: white; font-size: 1.1em; }
         .snapshot-table td { font-size: 1.2em; }
@@ -37,37 +31,19 @@
         .text-green { color: #27ae60 !important; }
         .text-red { color: #c0392b !important; }
 
-        .chart-box {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            height: 350px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-canvas-wrapper {
-            position: relative;
-            flex-grow: 1;
-            min-height: 0;
+        .chart-box { 
+            background-color: #fff; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; height: 350px;
         }
         
         #cardWrapper {
-            display: flex;
-            flex-wrap: wrap; 
-            justify-content: center;
-            gap: 20px;
-            padding: 10px 0;
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 20px; padding: 10px 0;
         }
 
         .comparison-column {
-            flex-grow: 0;
-            flex-shrink: 0;
-            flex-basis: 380px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            flex-grow: 0; flex-shrink: 0; flex-basis: 380px;
+            display: flex; flex-direction: column; gap: 20px;
         }
         
         .kpi-card { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
@@ -75,12 +51,22 @@
         .regen-bar-container { position: relative; height: 30px; background-color: #ecf0f1; border-radius: 15px; overflow: hidden; }
         .regen-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background-color: #27ae60; border-radius: 15px; transition: width 0.5s ease-in-out; }
         .regen-bar-text { position: absolute; width: 100%; left: 0; top: 50%; transform: translateY(-50%); color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+    
+        .chart-canvas-wrapper { position: relative; flex-grow: 1; min-height: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>EV Fleet Analytics</h1>
-        <p style="text-align: center; margin-bottom: 20px;"><a href="{{ url_for('index') }}">← Config</a> | <a href="{{ url_for('temp_insights_page') }}">Old Insights →</a></p>
+
+        <!-- CONSISTENT NAVIGATION BAR -->
+        <nav>
+            <ul class="main-nav">
+                <li><a href="{{ url_for('index') }}" class="nav-link">Configuration</a></li>
+                <li><a href="{{ url_for('editor') }}" class="nav-link">Schedule Editor</a></li>
+                <li><a href="{{ url_for('analytics') }}" class="nav-link">Fleet Analytics</a></li>
+            </ul>
+        </nav>
 
         <div class="control-deck">
             <div class="control-row">
@@ -121,7 +107,7 @@
         
         <div id="timeSeriesContainer" class="hidden">
             <h2>Efficiency Trend Over Time</h2>
-            <div class="chart-box"><canvas id="timeSeriesChart"></canvas></div>
+            <div class="chart-box" style="height: 450px;"><canvas id="timeSeriesChart"></canvas></div>
         </div>
     </div>
 
@@ -133,6 +119,9 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
+    <!-- Link to the main script for the navigation handler -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script> 
+    <!-- The analytics-specific JavaScript -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tempSliderEl = document.getElementById('tempSlider');

@@ -7,88 +7,92 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <div class="container"> <!-- Added a container div for better layout control -->
+        <h1>EV Bus Energy Simulator</h1>
 
-    <h1>EV Bus Energy Simulator - Configuration</h1>
-    <!-- CORRECTED: Moved the link inside the paragraph or a div for proper structure -->
-    <p><a href="{{ url_for('editor') }}">Go to Run/Charge Schedule Editor →</a>
-    <a href="{{ url_for('analytics') }}">Go to Fleet Analytics</a></p>
-    <p><a href="{{ url_for('temp_insights_page') }}">View Temperature Insights Dashboard →</a></p> <!-- Assuming you have this route -->
+        <!-- NEW: Modern Navigation Bar -->
+        <nav>
+            <ul class="main-nav">
+                <li><a href="{{ url_for('index') }}" class="nav-link">Configuration</a></li>
+                <li><a href="{{ url_for('editor') }}" class="nav-link">Schedule Editor</a></li>
+                <li><a href="{{ url_for('analytics') }}" class="nav-link">Fleet Analytics</a></li>
+            </ul>
+        </nav>
 
-
-    <div class="tabs">
-        <button id="tab-bus-params" class="tab-button active">Bus Parameters</button>
-        <button id="tab-charger-setup" class="tab-button">Charger Setup</button>
-    </div>
-
-    <div class="tab-content">
-
-        <!-- Bus Parameters Tab Content -->
-        <div id="bus-params-content" class="content-section active">
-            <h2>Bus Fleet Parameters</h2>
-            <p>Define the standard characteristics and simulation warnings for the buses.</p>
-
-            <div class="form-group">
-                <label for="ess-capacity">ESS Capacity (kWh):</label>
-                <input type="number" id="ess-capacity" value="435" min="1">
-                <p class="helper-text">(Energy Storage System capacity per bus)</p>
-            </div>
-
-            <div class="form-group">
-                <label for="eu-rate">Average Energy Use Rate (EU) during RUN (kW):</label>
-                <input type="number" id="eu-rate" value="55" min="0">
-                 <p class="helper-text">(Rate of energy consumption during RUN state)</p>
-                 <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
-            </div>
-
-            <fieldset style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
-                 <legend>Simulation Warning Thresholds</legend>
-                 <div class="form-group">
-                     <label for="warning-threshold-low">Low SOC Warning (%):</label>
-                     <input type="number" id="warning-threshold-low" value="20" min="0" max="100">
-                     <p class="helper-text">(Issue a yellow warning when SOC drops below this)</p>
-                 </div>
-                 <div class="form-group">
-                     <label for="warning-threshold-critical">Critical SOC Warning (%):</label>
-                     <input type="number" id="warning-threshold-critical" value="10" min="0" max="100">
-                     <p class="helper-text">(Issue a red warning when SOC drops below this)</p>
-                 </div>
-                  <p class="helper-text"><em>Note: A "Stranded" warning (bold red) occurs automatically if SOC drops below 5%. Ensure Critical >= 5%.</em></p>
-            </fieldset>
-
-            <button id="save-bus-params-btn" style="margin-top: 15px;">Save Bus Parameters</button> <!-- Gave it a more specific ID -->
-            <p id="bus-params-status" class="status-message"></p>
+        <div class="tabs">
+            <button id="tab-bus-params" class="tab-button active">Bus Parameters</button>
+            <button id="tab-charger-setup" class="tab-button">Charger Setup</button>
         </div>
 
-        <!-- Charger Setup Tab Content -->
-        <div id="charger-setup-content" class="content-section">
-            <h2>Charging Infrastructure</h2>
-            <p>Define available chargers for assignment in the Run/Charge Schedule.</p>
-            <button id="add-charger-btn">[+] Add New Charger</button>,
-            <h3>Configured Chargers:</h3>
-            <div id="charger-list-container">
-                <p>No chargers configured yet.</p>
+        <div class="tab-content">
+
+            <!-- Bus Parameters Tab Content -->
+            <div id="bus-params-content" class="content-section active">
+                <h2>Bus Fleet Parameters</h2>
+                <p>Define the standard characteristics and simulation warnings for the buses.</p>
+
+                <div class="form-group">
+                    <label for="ess-capacity">ESS Capacity (kWh):</label>
+                    <input type="number" id="ess-capacity" value="435" min="1">
+                    <p class="helper-text">(Energy Storage System capacity per bus)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="eu-rate">Average Energy Use Rate (EU) during RUN (kW):</label>
+                    <input type="number" id="eu-rate" value="55" min="0">
+                     <p class="helper-text">(Rate of energy consumption during RUN state)</p>
+                     <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
+                </div>
+
+                <fieldset style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
+                     <legend>Simulation Warning Thresholds</legend>
+                     <div class="form-group">
+                         <label for="warning-threshold-low">Low SOC Warning (%):</label>
+                         <input type="number" id="warning-threshold-low" value="20" min="0" max="100">
+                         <p class="helper-text">(Issue a yellow warning when SOC drops below this)</p>
+                     </div>
+                     <div class="form-group">
+                         <label for="warning-threshold-critical">Critical SOC Warning (%):</label>
+                         <input type="number" id="warning-threshold-critical" value="10" min="0" max="100">
+                         <p class="helper-text">(Issue a red warning when SOC drops below this)</p>
+                     </div>
+                      <p class="helper-text"><em>Note: A "Stranded" warning (bold red) occurs automatically if SOC drops below 5%. Ensure Critical >= 5%.</em></p>
+                </fieldset>
+
+                <button id="save-bus-params-btn" style="margin-top: 15px;">Save Bus Parameters</button>
+                <p id="bus-params-status" class="status-message"></p>
             </div>
-             <p id="charger-status" class="status-message"></p>
-            <div id="charger-form-container" style="display: none; border: 1px solid #ccc; padding: 15px; margin-top: 15px;">
-                 <h4>Charger Details</h4>
-                 <input type="hidden" id="charger-id-input"> <!-- Changed ID to avoid conflict -->
-                 <div class="form-group">
-                     <label for="charger-name-input">Charger Name:</label> <!-- Changed ID -->
-                     <input type="text" id="charger-name-input" placeholder="e.g., Depot Charger 1">
-                 </div>
-                 <div class="form-group">
-                     <label for="charger-rate-input">Charge Rate (kW):</label> <!-- Changed ID -->
-                     <input type="number" id="charger-rate-input" placeholder="e.g., 150" min="0">
-                     <p class="helper-text">(Fixed rate delivered to bus ESS)</p>
-                 </div>
-                 <button id="save-charger-details-btn">Save Charger</button> <!-- Changed ID -->
-                 <button id="cancel-charger-details-btn">Cancel</button> <!-- Changed ID -->
+
+            <!-- Charger Setup Tab Content -->
+            <div id="charger-setup-content" class="content-section">
+                <h2>Charging Infrastructure</h2>
+                <p>Define available chargers for assignment in the Run/Charge Schedule.</p>
+                <button id="add-charger-btn">[+] Add New Charger</button>
+                <h3>Configured Chargers:</h3>
+                <div id="charger-list-container">
+                    <p>No chargers configured yet.</p>
+                </div>
+                 <p id="charger-status" class="status-message"></p>
+                <div id="charger-form-container" style="display: none; border: 1px solid #ccc; padding: 15px; margin-top: 15px;">
+                     <h4>Charger Details</h4>
+                     <input type="hidden" id="charger-id-input">
+                     <div class="form-group">
+                         <label for="charger-name-input">Charger Name:</label>
+                         <input type="text" id="charger-name-input" placeholder="e.g., Depot Charger 1">
+                     </div>
+                     <div class="form-group">
+                         <label for="charger-rate-input">Charge Rate (kW):</label>
+                         <input type="number" id="charger-rate-input" placeholder="e.g., 150" min="0">
+                         <p class="helper-text">(Fixed rate delivered to bus ESS)</p>
+                     </div>
+                     <button id="save-charger-details-btn">Save Charger</button>
+                     <button id="cancel-charger-details-btn">Cancel</button>
+                </div>
             </div>
+
         </div>
+    </div> <!-- Closing container div -->
 
-    </div>
-
-    <!-- ADDED SCRIPT TAG FOR YOUR JAVASCRIPT -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

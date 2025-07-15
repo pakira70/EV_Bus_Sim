@@ -140,3 +140,42 @@ button:hover {
     min-height: 50px;
 }
 /* We'll add more specific styles here later for the actual list items */
+/* === MODERN NAVIGATION BAR === */
+.main-nav {
+    display: flex;
+    justify-content: flex-end; /* <<< ALIGNS ITEMS TO THE RIGHT */
+    gap: 25px;
+    list-style-type: none;
+    padding: 0;
+    margin-bottom: 30px; /* Removed auto horizontal margins */
+    border-bottom: 1px solid #ddd;
+    /* width: fit-content; is no longer needed */
+}
+
+.main-nav a {
+    text-decoration: none;
+    color: #555;
+    padding: 10px 5px;
+    font-weight: 500;
+    display: block;
+    transition: color 0.2s ease;
+}
+
+.main-nav a:hover {
+    color: #3498db;
+}
+
+/* Active style is bold text only */
+.main-nav a.active {
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+
+/* === SMALL ACTION BUTTONS === */
+/* Use this class on Edit/Delete buttons */
+.action-btn-small {
+    padding: 5px 10px;
+    font-size: 0.85em;
+    margin: 0 2px;
+}
