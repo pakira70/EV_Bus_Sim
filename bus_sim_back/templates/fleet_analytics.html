@@ -4,62 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EV Fleet Analytics</title>
-    <!-- Main stylesheet for consistent navigation -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
-    <!-- Libraries specific to this page -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/nouislider/distribute/nouislider.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <style>
-        /* These are styles specific to the analytics page */
-        .select2-container .select2-selection--multiple { border: 1px solid #ccc !important; border-radius: 4px !important; min-height: 38px !important; }
-        .noUi-target { background: #e9e9e9; border-radius: 4px; border: none; box-shadow: inset 0 1px 1px #f0f0f0, 0 3px 6px -5px #bbb; }
-        .noUi-connect { background: #3498db; }
-        .noUi-handle { border-radius: 50%; background: #FFF; box-shadow: 0 0 1px rgba(0,0,0,0.5); cursor: pointer; border: none; }
-        .noUi-handle:focus, .noUi-handle:active { outline: none; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.4); }
-        .noUi-handle::before, .noUi-handle::after { display: none; }
-        .noUi-tooltip { font-size: 0.8em; font-weight: 600; }
 
-        .snapshot-table { width: 100%; border-collapse: collapse; background-color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 30px;}
-        .snapshot-table th, .snapshot-table td { padding: 15px; text-align: center; border-bottom: 1px solid #e0e0e0; }
-        .snapshot-table th { background-color: #34495e; color: white; font-size: 1.1em; }
-        .snapshot-table td { font-size: 1.2em; }
-        .snapshot-table tr:last-child td { border-bottom: none; }
-        .snapshot-table td:first-child { text-align: left; font-weight: 600; color: #34495e; }
-        .snapshot-value { font-size: 1.5em; font-weight: 700; display: block; }
-        .snapshot-sub-text { font-size: 0.8em; color: #7f8c8d; }
-        .text-green { color: #27ae60 !important; }
-        .text-red { color: #c0392b !important; }
-
-        .chart-box { 
-            background-color: #fff; padding: 20px; border-radius: 8px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; height: 350px;
-        }
-        
-        #cardWrapper {
-            display: flex; flex-wrap: wrap; justify-content: center;
-            gap: 20px; padding: 10px 0;
-        }
-
-        .comparison-column {
-            flex-grow: 0; flex-shrink: 0; flex-basis: 380px;
-            display: flex; flex-direction: column; gap: 20px;
-        }
-        
-        .kpi-card { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
-        .kpi-card h3 { margin-top: 0; margin-bottom: 15px; color: #34495e; font-size: 1.1em; }
-        .regen-bar-container { position: relative; height: 30px; background-color: #ecf0f1; border-radius: 15px; overflow: hidden; }
-        .regen-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background-color: #27ae60; border-radius: 15px; transition: width 0.5s ease-in-out; }
-        .regen-bar-text { position: absolute; width: 100%; left: 0; top: 50%; transform: translateY(-50%); color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-    
-        .chart-canvas-wrapper { position: relative; flex-grow: 1; min-height: 0; }
-    </style>
+<style>
+    .control-deck{background-color:var(--color-surface-1);padding:20px;border-radius:var(--border-radius-lg);margin-bottom:30px;border:1px solid var(--color-border)}.control-row{display:flex;align-items:flex-end;gap:20px}.control-group{flex-grow:1}.noUi-target{background:var(--color-surface-2);border-radius:var(--border-radius-pill);border:none;box-shadow:none;height:8px}.noUi-connect{background:var(--color-primary)}.noUi-handle{border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);cursor:pointer;border:none;width:20px;height:20px;top:-6px;right:-10px}.noUi-handle:active,.noUi-handle:focus{outline:none;box-shadow:0 0 0 3px rgba(138,180,248,.4)}.noUi-tooltip{font-size:.8em;font-weight:600;background-color:var(--color-surface-2);color:var(--color-text-primary);border:none;border-radius:var(--border-radius-sm);padding:4px 8px}.noUi-handle::after,.noUi-handle::before{display:none}.select2-container--default .select2-selection--multiple{background-color:var(--color-surface-1)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-sm)!important;min-height:42px!important;padding:4px!important}.select2-container--default.select2-container--focus .select2-selection--multiple{border-color:var(--color-primary)!important;box-shadow:0 0 0 2px rgba(138,180,248,.4)!important}.select2-container--default .select2-selection--multiple .select2-selection__choice{background-color:var(--color-primary)!important;border:none!important;border-radius:var(--border-radius-pill)!important;color:#000!important;padding:5px 10px!important;font-weight:500}.select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#000!important;margin-right:5px!important;font-size:1.2em}.select2-dropdown{background-color:var(--color-surface-2)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-md)!important}.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{background-color:var(--color-primary)!important;color:#fff!important}.chart-box,.kpi-card,.snapshot-table{background-color:var(--color-surface-1);padding:25px;border-radius:var(--border-radius-lg);border:1px solid var(--color-border);margin-bottom:20px}.snapshot-table{width:100%;border-collapse:separate;border-spacing:0}.snapshot-table td,.snapshot-table th{padding:16px;text-align:center;border-bottom:1px solid var(--color-border)}.snapshot-table th{background-color:transparent;color:var(--color-text-secondary);font-size:.9em;text-transform:uppercase;font-weight:600;letter-spacing:.5px;border-bottom-width:2px}.snapshot-table td{font-size:1em}.snapshot-table tr:last-child td{border-bottom:none}.snapshot-table td:first-child{text-align:left;font-weight:500;color:var(--color-text-primary)}.snapshot-value{font-size:1.8em;font-weight:700;display:block;margin-bottom:4px}.snapshot-sub-text{font-size:.8em;color:var(--color-text-secondary)}#cardWrapper{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:20px;padding:10px 0}.comparison-column{flex-grow:0;flex-shrink:0;flex-basis:350px;display:flex;flex-direction:column;gap:20px}.kpi-card h3{margin-bottom:15px}.regen-bar-container{position:relative;height:30px;background-color:var(--color-surface-2);border-radius:var(--border-radius-pill);overflow:hidden}.regen-bar-fill{position:absolute;left:0;top:0;height:100%;background-color:var(--color-green);transition:width .5s ease-in-out}.regen-bar-text{position:absolute;width:100%;left:0;top:50%;transform:translateY(-50%);color:#fff;font-weight:500;font-size:.9em;text-shadow:1px 1px 2px rgba(0,0,0,.5);padding-left:15px}.chart-canvas-wrapper{position:relative;flex-grow:1;min-height:0}.chart-header{display:flex;justify-content:space-between;align-items:center}.chart-header h2{margin:0;border:none}.chart-actions{display:flex;gap:10px}.btn{padding:8px 16px;border:1px solid var(--color-border);border-radius:var(--border-radius-pill);background-color:var(--color-surface-2);color:var(--color-text-secondary);font-weight:500;cursor:pointer;transition:background-color .2s ease,color .2s ease}.btn:hover{background-color:var(--color-surface-1);color:var(--color-text-primary)}.no-data-list{font-size:.9em;color:var(--color-text-secondary);background-color:var(--color-surface-1);border:1px solid var(--color-border);border-radius:var(--border-radius-md);padding:15px 20px;margin-top:-10px;list-style-position:inside}
+</style>
 </head>
 <body>
     <div class="container">
         <h1>EV Fleet Analytics</h1>
 
-        <!-- CONSISTENT NAVIGATION BAR -->
         <nav>
             <ul class="main-nav">
                 <li><a href="{{ url_for('index') }}" class="nav-link">Configuration</a></li>
@@ -74,7 +34,6 @@
                     <label>Filter by Temperature (°F): <span id="tempValueLower" style="font-weight:bold;">10°F</span> - <span id="tempValueUpper" style="font-weight:bold;">90°F</span></label>
                     <div id="tempSlider"></div>
                 </div>
-                <div class="control-group"><label for="busSelector">Highlight Buses</label><select id="busSelector" multiple="multiple" style="width: 100%;"></select></div>
                 <div class="control-group" style="flex-grow: 0.5; min-width: 150px;"><label for="essCapacityInput">ESS Capacity (kWh)</label><input type="number" id="essCapacityInput" value="450" step="10"></div>
             </div>
         </div>
@@ -86,7 +45,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>Avg. Energy Use<br><span class="snapshot-sub-text">(kW)</span></td>
+                    <td>Avg. Energy Use<br><span class="snapshot-sub-text">(kW/hour)</span></td>
                     <td id="s-fleet-power">--</td>
                     <td id="s-best-power">--</td>
                     <td id="s-worst-power">--</td>
@@ -97,17 +56,25 @@
             </tbody>
         </table>
 
-        <h2>Bus Comparison (Avg. Energy Use)</h2>
+        <div class="chart-header">
+            <h2>Bus Comparison - Average Energy Use per Hour</h2>
+            <div class="chart-actions">
+                <button id="selectAllBusesBtn" class="btn">Select All</button>
+                <button id="clearSelectionBtn" class="btn">Clear All</button>
+            </div>
+        </div>
         <div class="chart-box" id="mainBarChartContainer"><canvas id="busComparisonBarChart"></canvas></div>
 
         <div id="detailBreakdownContainer" class="hidden">
             <h2>Detailed Breakdown</h2>
             <div id="cardWrapper"></div>
         </div>
+        <div id="noDataNotificationContainer" class="hidden"></div>
         
-        <div id="timeSeriesContainer" class="hidden">
-            <h2>Efficiency Trend Over Time</h2>
-            <div class="chart-box" style="height: 450px;"><canvas id="timeSeriesChart"></canvas></div>
+        <h2 style="margin-top: 30px;">Energy Use Over Time (Feature Coming Soon)</h2>
+        
+        <div class="chart-box" style="height: 450px;">
+            <canvas id="multiBusTimeSeriesChart"></canvas>
         </div>
     </div>
 
@@ -123,228 +90,253 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script> 
     <!-- The analytics-specific JavaScript -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const tempSliderEl = document.getElementById('tempSlider');
-        const busSelector = $('#busSelector');
-        const essCapacityInput = document.getElementById('essCapacityInput');
-        let busComparisonBarChart, timeSeriesChartInstance;
-
-        const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
-
-        async function updateDashboard() {
-            const tempValues = tempSliderEl.noUiSlider.get(true);
-            const selectedBuses = busSelector.val() || [];
-            let essCapacity = parseFloat(essCapacityInput.value) || 450;
-            localStorage.setItem('busESSCapacity', essCapacity);
+        document.addEventListener('DOMContentLoaded', function() {
+    
+            const tempSliderEl = document.getElementById('tempSlider');
+            const essCapacityInput = document.getElementById('essCapacityInput');
             
-            const params = new URLSearchParams({ low_temp: tempValues[0], high_temp: tempValues[1] });
-            try {
-                const response = await fetch(`/api/fleet_analytics_data?${params}`);
-                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-                const data = await response.json();
-                
-                updateSnapshotTable(data.snapshot_kpis, data.fleet_metrics_by_bus, essCapacity);
-                updateBusComparisonBarChart(data.fleet_metrics_by_bus, selectedBuses);
-                updateDetailBreakdown(data.fleet_metrics_by_bus, selectedBuses);
-                updateTimeSeriesChart(selectedBuses, tempValues);
-                
-                if (busSelector.find("option").length === 0 && data.bus_list) {
-                    data.bus_list.forEach(bus => busSelector.append(new Option(bus, bus, false, false)));
-                    busSelector.trigger('change');
-                }
-            } catch (error) { console.error("Failed to update dashboard:", error); }
-        }
+            let busComparisonBarChart = null;
+            let allBusData = {};
+            let allBusIDs = [];
+            let selectedBuses = [];
 
-        function createMetricHTML(value, unit, comparisonValue, lowerIsBetter = true) {
-            let colorClass = '';
-            if (comparisonValue !== undefined && value !== '--' && parseFloat(value) !== parseFloat(comparisonValue)) {
-                colorClass = (parseFloat(value) < parseFloat(comparisonValue)) ? (lowerIsBetter ? 'text-green' : 'text-red') : (lowerIsBetter ? 'text-red' : 'text-green');
+            const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
+
+            async function initialLoad() {
+                const tempValues = tempSliderEl.noUiSlider.get(true);
+                let essCapacity = parseFloat(essCapacityInput.value) || 450;
+                localStorage.setItem('busESSCapacity', essCapacity);
+                
+                const params = new URLSearchParams({ low_temp: tempValues[0], high_temp: tempValues[1] });
+                try {
+                    const response = await fetch(`/api/fleet_analytics_data?${params}`);
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                    const data = await response.json();
+                    
+                    allBusData = data.fleet_metrics_by_bus;
+                    allBusIDs = data.bus_list || [];
+                    selectedBuses = []; 
+
+                    updateSnapshotTable(data.snapshot_kpis, allBusData, essCapacity);
+                    handleSelectionChange(); 
+
+                    const timeSeriesBusSelector = $('#timeSeriesBusSelector');
+                    if (allBusIDs.length > 0) {
+                        timeSeriesBusSelector.empty(); 
+                        allBusIDs.forEach(bus => {
+                            timeSeriesBusSelector.append(new Option(bus, bus, false, false));
+                        });
+                        timeSeriesBusSelector.trigger('change');
+                    }
+                } catch (error) { console.error("Failed to update dashboard:", error); }
             }
-            return `<span class="snapshot-value ${colorClass}">${value}</span><span class="snapshot-sub-text">${unit}</span>`;
-        }
-        
-        function updateSnapshotTable(kpis, busData, essCapacity) {
-            const usableEnergy = essCapacity * 0.85;
-            const { fleet_avg_power, fleet_avg_economy, best_bus_by_power_id, worst_bus_by_power_id, best_bus_by_economy_id, worst_bus_by_economy_id } = kpis;
-            
-            const bestPowerBusData = busData[best_bus_by_power_id] || {};
-            const worstPowerBusData = busData[worst_bus_by_power_id] || {};
-            const bestEconBusData = busData[best_bus_by_economy_id] || {};
-            const worstEconBusData = busData[worst_bus_by_economy_id] || {};
 
-            const addBusId = (id) => id ? `<span class="snapshot-sub-text">(Bus ${id})</span>` : '';
+            function handleSelectionChange() {
+                updateBusComparisonBarChart();
+                updateDetailBreakdown();
+            }
 
-            document.getElementById('s-fleet-power').innerHTML = createMetricHTML(formatNumber(fleet_avg_power, 2), '');
-            document.getElementById('s-best-power').innerHTML = createMetricHTML(formatNumber(bestPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(best_bus_by_power_id);
-            document.getElementById('s-worst-power').innerHTML = createMetricHTML(formatNumber(worstPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(worst_bus_by_power_id);
-            
-            const rangeH = p => p > 0 ? usableEnergy / p : 0;
-            document.getElementById('s-fleet-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(fleet_avg_power), 1), 'hours');
-            document.getElementById('s-best-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(bestPowerBusData.avg_power_kw), 1), 'hours', rangeH(fleet_avg_power), false) + addBusId(best_bus_by_power_id);
-            document.getElementById('s-worst-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(worstPowerBusData.avg_power_kw), 1), 'hours', rangeH(fleet_avg_power), false) + addBusId(worst_bus_by_power_id);
-
-            document.getElementById('s-fleet-economy').innerHTML = createMetricHTML(formatNumber(fleet_avg_economy, 2), '');
-            document.getElementById('s-best-economy').innerHTML = createMetricHTML(formatNumber(bestEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(best_bus_by_economy_id);
-            document.getElementById('s-worst-economy').innerHTML = createMetricHTML(formatNumber(worstEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(worst_bus_by_economy_id);
-            
-            const rangeM = e => e > 0 ? usableEnergy / e : 0;
-            document.getElementById('s-fleet-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(fleet_avg_economy), 0), 'miles');
-            document.getElementById('s-best-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(bestEconBusData.avg_economy_kwh_per_mile), 0), 'miles', rangeM(fleet_avg_economy), false) + addBusId(best_bus_by_economy_id);
-            document.getElementById('s-worst-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(worstEconBusData.avg_economy_kwh_per_mile), 0), 'miles', rangeM(fleet_avg_economy), false) + addBusId(worst_bus_by_economy_id);
-        }
-
-        function updateBusComparisonBarChart(busData, selectedBuses) {
-            const sortedBuses = Object.entries(busData).sort((a, b) => a[1].avg_power_kw - b[1].avg_power_kw);
-            const labels = sortedBuses.map(entry => entry[0]);
-            const data = sortedBuses.map(entry => entry[1].avg_power_kw);
-            const backgroundColors = sortedBuses.map(entry => selectedBuses.includes(entry[0]) ? '#3498db' : '#bdc3c7');
-
-            if (busComparisonBarChart) busComparisonBarChart.destroy();
-            busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
-                type: 'bar',
-                data: { 
-                    labels: labels,
-                    datasets: [{ label: 'Avg. Energy Use (kW)', data: data, backgroundColor: backgroundColors }]
-                },
-                options: { 
-                    indexAxis: 'y', 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false }, datalabels: { display: false } } 
+            function updateBusComparisonBarChart() {
+                if (busComparisonBarChart) {
+                    busComparisonBarChart.destroy();
                 }
-            });
-            const chartContainer = document.getElementById('mainBarChartContainer');
-            const chartHeight = Math.max(400, labels.length * 25);
-            chartContainer.style.height = `${chartHeight}px`;
-        }
-        
-        function updateDetailBreakdown(busData, selectedBuses) {
-            const container = document.getElementById('detailBreakdownContainer');
-            const cardWrapper = document.getElementById('cardWrapper'); 
-            
-            if (selectedBuses.length === 0) {
-                container.classList.add('hidden');
+
+                const sortedBuses = Object.entries(allBusData).sort((a, b) => a[1].avg_power_kw - b[1].avg_power_kw);
+                const labels = sortedBuses.map(entry => entry[0]);
+                const data = sortedBuses.map(entry => entry[1].avg_power_kw);
+                const backgroundColors = sortedBuses.map(entry => {
+                    return selectedBuses.includes(entry[0]) ? 'var(--color-primary)' : '#5F6368';
+                });
+
+                busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: 'Avg. Energy Use (kW)', data: data, backgroundColor: backgroundColors }] },
+                    options: {
+                        animation: false,
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, datalabels: { display: false } },
+                        scales: {
+                            y: { ticks: { color: '#e8eaed' } },
+                            x: {
+                                ticks: { color: '#e8eaed' },
+                                title: { display: true, text: 'Average Energy Use (kW/hour)', color: '#e8eaed' }
+                            }
+                        },
+                        onHover: (event, chartElement) => {
+                            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                        },
+                        onClick: (event) => {
+                            const points = busComparisonBarChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                            if (points.length) {
+                                const firstPoint = points[0];
+                                const busId = busComparisonBarChart.data.labels[firstPoint.index];
+                                const index = selectedBuses.indexOf(busId);
+                                if (index > -1) { selectedBuses.splice(index, 1); } 
+                                else { selectedBuses.push(busId); }
+                                handleSelectionChange();
+                            }
+                        }
+                    }
+                });
+                const chartContainer = document.getElementById('mainBarChartContainer');
+                chartContainer.style.height = `${Math.max(400, labels.length * 25)}px`;
+            }
+
+            function updateDetailBreakdown() {
+                const detailContainer = document.getElementById('detailBreakdownContainer');
+                const cardWrapper = document.getElementById('cardWrapper');
+                const noDataContainer = document.getElementById('noDataNotificationContainer');
+                
                 cardWrapper.innerHTML = '';
-                return;
-            }
-            container.classList.remove('hidden');
-            cardWrapper.innerHTML = '';
-            
-            selectedBuses.forEach(busId => {
-                const busMetrics = busData[busId];
-                cardWrapper.insertAdjacentHTML('beforeend', createComparisonColumnHTML(busId, busMetrics));
-                if (busMetrics && busMetrics.avg_power_kw > 0) {
-                    createDonutChart(`donut-${busId}`, busMetrics.breakdown_kw);
+                noDataContainer.innerHTML = '';
+                noDataContainer.classList.add('hidden');
+
+                if (selectedBuses.length === 0) {
+                    detailContainer.classList.add('hidden');
+                    return;
                 }
-            });
-        }
 
-        function createComparisonColumnHTML(title, metrics) {
-             if (!metrics || metrics.avg_power_kw === 0) {
-                return `<div class="comparison-column"><div class="chart-box" style="justify-content:center; align-items:center;"><h3>Bus ${title}</h3><p>No driving data available for the selected temperature range.</p></div></div>`;
-             }
-            const regenPercent = formatNumber(metrics.regen_offset_percent, 1);
-            return `
-                <div class="comparison-column">
-                    <div class="chart-box">
-                        <h3>Bus ${title}</h3>
-                        <div class="chart-canvas-wrapper">
-                            <canvas id="donut-${title}"></canvas>
-                        </div>
-                    </div>
-                    <div class="kpi-card"><h3>Regen Performance</h3>
-                        <div class="regen-bar-container"><div class="regen-bar-fill" style="width: ${regenPercent}%;"></div><div class="regen-bar-text">${regenPercent}%</div></div>
-                    </div>
-                </div>`;
-        }
+                detailContainer.classList.remove('hidden');
 
-        function createDonutChart(canvasId, data) {
-            const ctx = document.getElementById(canvasId)?.getContext('2d');
-            if (!ctx) return;
-            const filteredLabels = Object.keys(data).filter(key => data[key] > 0.01);
-            const filteredData = filteredLabels.map(key => data[key]);
-            
-            if (filteredData.length === 0) {
-                ctx.font = "16px Arial"; ctx.textAlign = "center";
-                ctx.fillText("No breakdown data.", ctx.canvas.width / 2, ctx.canvas.height / 2);
-                return;
+                const busesWithData = selectedBuses.filter(busId => allBusData[busId] && allBusData[busId].avg_power_kw > 0);
+                const busesWithoutData = selectedBuses.filter(busId => !allBusData[busId] || allBusData[busId].avg_power_kw === 0);
+
+                busesWithData.forEach(busId => {
+                    const busMetrics = allBusData[busId];
+                    cardWrapper.insertAdjacentHTML('beforeend', createComparisonColumnHTML(busId, busMetrics));
+                    createDonutChart(`donut-${busId}`, busMetrics.breakdown_kw);
+                });
+
+                if (busesWithoutData.length > 0) {
+                    const listItems = busesWithoutData.map(busId => `<li>Bus ${busId} has no data in this temperature range.</li>`).join('');
+                    noDataContainer.innerHTML = `<ul class="no-data-list">${listItems}</ul>`;
+                    noDataContainer.classList.remove('hidden');
+                }
             }
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: { labels: filteredLabels, datasets: [{ data: filteredData, backgroundColor: ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'] }] },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    cutout: '50%', 
-                    plugins: { 
-                        legend: { display: false }, 
-                        datalabels: { 
-                            color: '#fff', 
-                            font: { weight: 'bold' }, 
-                            formatter: (v, c) => `${(v / c.chart.getDatasetMeta(0).total * 100).toFixed(0)}%` 
+            
+            function updateSnapshotTable(kpis, busData, essCapacity) {
+                const usableEnergy = essCapacity * 0.85;
+                const { fleet_avg_power, fleet_avg_economy, best_bus_by_power_id, worst_bus_by_power_id, best_bus_by_economy_id, worst_bus_by_economy_id } = kpis;
+                
+                const bestPowerBusData = busData[best_bus_by_power_id] || {};
+                const worstPowerBusData = busData[worst_bus_by_power_id] || {};
+                const bestEconBusData = busData[best_bus_by_economy_id] || {};
+                const worstEconBusData = busData[worst_bus_by_economy_id] || {};
+                const addBusId = (id) => id ? `<span class="snapshot-sub-text">(Bus ${id})</span>` : '';
+
+                const createMetricHTML = (value, unit, comparisonValue, lowerIsBetter = true) => {
+                    let colorClass = '';
+                    if (comparisonValue !== undefined && value !== '--' && parseFloat(value) !== parseFloat(comparisonValue)) {
+                        colorClass = (parseFloat(value) < parseFloat(comparisonValue)) ? 'text-green' : 'text-red';
+                        if (!lowerIsBetter) colorClass = (colorClass === 'text-green' ? 'text-red' : 'text-green');
+                    }
+                    return `<span class="snapshot-value ${colorClass}">${value}</span><span class="snapshot-sub-text">${unit}</span>`;
+                };
+
+                document.getElementById('s-fleet-power').innerHTML = createMetricHTML(formatNumber(fleet_avg_power, 2), '');
+                document.getElementById('s-best-power').innerHTML = createMetricHTML(formatNumber(bestPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(best_bus_by_power_id);
+                document.getElementById('s-worst-power').innerHTML = createMetricHTML(formatNumber(worstPowerBusData.avg_power_kw, 2), '', fleet_avg_power, true) + addBusId(worst_bus_by_power_id);
+                
+                const rangeH = p => p > 0 ? usableEnergy / p : 0;
+                document.getElementById('s-fleet-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(fleet_avg_power), 1), '');
+                document.getElementById('s-best-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(bestPowerBusData.avg_power_kw), 1), '', rangeH(fleet_avg_power), false) + addBusId(best_bus_by_power_id);
+                document.getElementById('s-worst-range-h').innerHTML = createMetricHTML(formatNumber(rangeH(worstPowerBusData.avg_power_kw), 1), '', rangeH(fleet_avg_power), false) + addBusId(worst_bus_by_power_id);
+
+                document.getElementById('s-fleet-economy').innerHTML = createMetricHTML(formatNumber(fleet_avg_economy, 2), '');
+                document.getElementById('s-best-economy').innerHTML = createMetricHTML(formatNumber(bestEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(best_bus_by_economy_id);
+                document.getElementById('s-worst-economy').innerHTML = createMetricHTML(formatNumber(worstEconBusData.avg_economy_kwh_per_mile, 2), '', fleet_avg_economy, true) + addBusId(worst_bus_by_economy_id);
+                
+                const rangeM = e => e > 0 ? usableEnergy / e : 0;
+                document.getElementById('s-fleet-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(fleet_avg_economy), 0), '');
+                document.getElementById('s-best-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(bestEconBusData.avg_economy_kwh_per_mile), 0), '', rangeM(fleet_avg_economy), false) + addBusId(best_bus_by_economy_id);
+                document.getElementById('s-worst-range-m').innerHTML = createMetricHTML(formatNumber(rangeM(worstEconBusData.avg_economy_kwh_per_mile), 0), '', rangeM(fleet_avg_economy), false) + addBusId(worst_bus_by_economy_id);
+            }
+
+            function createComparisonColumnHTML(title, metrics) {
+                const regenPercent = formatNumber(metrics.regen_offset_percent, 1);
+                return `
+                    <div class="comparison-column">
+                        <div class="chart-box">
+                            <h3>Bus ${title}</h3>
+                            <div class="chart-canvas-wrapper">
+                                <canvas id="donut-${title}"></canvas>
+                            </div>
+                        </div>
+                        <div class="kpi-card"><h3>Regen Performance</h3>
+                            <div class="regen-bar-container"><div class="regen-bar-fill" style="width: ${regenPercent}%;"></div><div class="regen-bar-text">${regenPercent}%</div></div>
+                        </div>
+                    </div>`;
+            }
+
+            function createDonutChart(canvasId, data) {
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                const chartData = {
+                    labels: Object.keys(data).filter(key => data[key] > 0.01),
+                    datasets: [{ data: Object.values(data).filter(val => val > 0.01), backgroundColor: ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'] }]
+                };
+                new Chart(ctx, { type: 'doughnut', data: chartData,
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, cutout: '50%', 
+                        plugins: { 
+                            legend: { display: false }, 
+                            datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v, c) => `${(v / c.chart.getDatasetMeta(0).total * 100).toFixed(0)}%` } 
                         } 
                     } 
-                }
-            });
-        }
-
-        async function updateTimeSeriesChart(selectedBuses, tempFilter) {
-            const container = document.getElementById('timeSeriesContainer');
-            if (selectedBuses.length !== 1) {
-                container.classList.add('hidden'); return;
+                });
             }
-            container.classList.remove('hidden');
-
-            const params = new URLSearchParams({ low_temp: tempFilter[0], high_temp: tempFilter[1], timeseries_bus: selectedBuses[0] });
-            const response = await fetch(`/api/fleet_analytics_data?${params}`);
-            const data = await response.json();
-
-            if (timeSeriesChartInstance) timeSeriesChartInstance.destroy();
-            timeSeriesChartInstance = new Chart(document.getElementById('timeSeriesChart'), {
-                type: 'line',
-                data: { datasets: [{
-                    label: `Bus ${selectedBuses[0]}`,
-                    data: data.map(d => ({ x: d.date, y: d.avg_power_kw })),
-                    borderColor: '#3498db', backgroundColor: '#3498db',
-                }]},
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    scales: { 
-                        x: { type: 'time', time: { unit: 'month' } }, 
-                        y: { title: { display: true, text: 'Avg. Energy Use (kW)' } } 
-                    }, 
-                    plugins: { datalabels: { display: false } } 
-                }
-            });
-        }
-
+            
         function initializeControls() {
             noUiSlider.create(tempSliderEl, {
                 start: [10, 90], connect: true, range: { 'min': 10, 'max': 90 }, step: 5,
-                tooltips: [
-                    { to: function(value) { return `${Math.round(value)}°F` } },
-                    { to: function(value) { return `${Math.round(value)}°F` } }
-                ]
+                tooltips: [ { to: v => `${Math.round(v)}°F` }, { to: v => `${Math.round(v)}°F` }]
             });
-            tempSliderEl.noUiSlider.on('update', (values, handle, unencoded) => {
-                document.getElementById('tempValueLower').textContent = `${Math.round(unencoded[0])}°F`;
-                document.getElementById('tempValueUpper').textContent = `${Math.round(unencoded[1])}°F`;
+            tempSliderEl.noUiSlider.on('update', (values) => {
+                document.getElementById('tempValueLower').textContent = `${Math.round(values[0])}°F`;
+                document.getElementById('tempValueUpper').textContent = `${Math.round(values[1])}°F`;
             });
-            tempSliderEl.noUiSlider.on('change', updateDashboard);
+            tempSliderEl.noUiSlider.on('change', initialLoad);
             
-            busSelector.select2({ placeholder: 'Highlight buses & see details', allowClear: true });
-            busSelector.on('change', updateDashboard);
+            $('#timeSeriesBusSelector').select2({ placeholder: 'Select buses to compare on the chart', allowClear: true });
             
             const storedESS = localStorage.getItem('busESSCapacity');
             if (storedESS) essCapacityInput.value = storedESS;
-            essCapacityInput.addEventListener('change', updateDashboard);
-        }
+            essCapacityInput.addEventListener('change', initialLoad);
 
-        Chart.register(ChartDataLabels);
-        initializeControls();
-        updateDashboard();
-    });
+            // NEW, SIMPLER LOGIC
+            document.getElementById('selectAllBusesBtn').addEventListener('click', () => {
+                if (!busComparisonBarChart) return;
+
+                // 1. Update the internal list of what is selected.
+                selectedBuses = [...allBusIDs]; 
+                
+                // 2. Give the direct command: "Make all bars blue."
+                busComparisonBarChart.data.datasets[0].backgroundColor = allBusIDs.map(() => 'var(--color-primary)');
+                
+                // 3. Tell the chart to show the changes and update the detail cards.
+                busComparisonBarChart.update();
+                updateDetailBreakdown();
+            });
+
+            document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+                if (!busComparisonBarChart) return;
+                
+                // 1. Update the internal list.
+                selectedBuses = []; 
+
+                // 2. Give the direct command: "Make all bars gray."
+                busComparisonBarChart.data.datasets[0].backgroundColor = allBusIDs.map(() => '#5F6368');
+                
+                // 3. Tell the chart to show the changes and update the detail cards.
+                busComparisonBarChart.update();
+                updateDetailBreakdown();
+            });
+        }
+            Chart.register(ChartDataLabels);
+            initializeControls();
+            initialLoad();
+        });
     </script>
+    
+    <script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
 </body>
 </html>

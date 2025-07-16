@@ -1,0 +1,176 @@
+// static/js/analytics.js
+
+document.addEventListener('DOMContentLoaded', function () {
+    // --- This script controls the new multi-bus time series chart ---
+
+    // 1. SELECTORS & STATE
+    const busSelector = $('#timeSeriesBusSelector');
+    const chartCanvas = document.getElementById('multiBusTimeSeriesChart');
+    if (!chartCanvas) return; // Exit if the chart canvas isn't on the page
+    
+    const ctx = chartCanvas.getContext('2d');
+    let timeSeriesChart = null; // Variable to hold the Chart.js instance
+
+    // A list of distinct colors for the chart lines
+    const CHART_COLORS = [
+        '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF',
+        '#FF9F40', '#C9CBCF', '#E7E9ED', '#8A2BE2', '#7FFF00'
+    ];
+
+    // 2. EVENT LISTENERS
+    busSelector.on('change', () => {
+        // Debounce the update function to avoid rapid-fire API calls while user is clicking
+        // This is a simple version of debouncing
+        clearTimeout(busSelector.data('timeout'));
+        busSelector.data('timeout', setTimeout(updateMultiBusChart, 500));
+    });
+
+    // 3. FUNCTIONS
+    
+    /**
+     * Draws a placeholder message on the canvas when no data is available.
+     * @param {string} message - The message to display.
+     */
+    function drawPlaceholder(message) {
+        if (timeSeriesChart) {
+            timeSeriesChart.destroy();
+            timeSeriesChart = null;
+        }
+        ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = "16px 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
+        ctx.fillStyle = '#999';
+        ctx.fillText(message, chartCanvas.width / 2, chartCanvas.height / 2);
+        ctx.restore();
+    }
+
+    /**
+     * Main function to fetch data and update the chart.
+     */
+    async function updateMultiBusChart() {
+        const selectedBuses = busSelector.val();
+
+        // If no buses are selected, show a placeholder and exit
+        if (!selectedBuses || selectedBuses.length === 0) {
+            drawPlaceholder('Select one or more buses to see their energy use over time.');
+            return;
+        }
+
+        drawPlaceholder('Loading data...'); // Show a loading message
+
+        try {
+            // Build the query parameters. The backend expects a key for each bus.
+            const params = new URLSearchParams();
+            selectedBuses.forEach(busId => {
+                params.append('timeseries_buses', busId);
+            });
+            
+            // Fetch the data from our new API endpoint
+            const response = await fetch(`/api/fleet_analytics_data?${params}`);
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+            const apiData = await response.json();
+
+            // Transform the API response into Chart.js dataset format
+            const datasets = Object.keys(apiData).map((busId, index) => {
+                const busData = apiData[busId];
+                const color = CHART_COLORS[index % CHART_COLORS.length]; // Cycle through colors
+
+                return {
+                    label: `Bus ${busId}`,
+                    data: busData.map(d => ({
+                        x: d.date, // Use the date string directly
+                        y: d.moving_avg_power_kw // Use the new moving average field
+                    })),
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.3, // This makes the line smooth
+                    fill: false,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                };
+            });
+            
+            // Render the chart with the new data
+            renderChart(datasets);
+
+        } catch (error) {
+            console.error('Failed to update multi-bus chart:', error);
+            drawPlaceholder('An error occurred while loading data.');
+        }
+    }
+
+    /**
+     * Renders the Chart.js chart with the given datasets.
+     * @param {Array} datasets - An array of dataset objects formatted for Chart.js.
+     */
+    function renderChart(datasets) {
+        if (timeSeriesChart) {
+            timeSeriesChart.destroy();
+        }
+
+        timeSeriesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'MMM d, yyyy'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '7-Day Moving Avg Power (kW)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2) + ' kW';
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    datalabels: { // Ensure datalabels are off for this chart
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Initial state
+    drawPlaceholder('Select one or more buses to see their energy use over time.');
+});

@@ -3,6 +3,7 @@ import sqlite3
 import os
 import logging
 import json
+import pandas as pd
 
 # --- Configuration & Initialization ---
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -23,7 +24,6 @@ def init_db():
         conn = get_db_conn()
         cur = conn.cursor()
         
-        # Main operational data table (already exists but good to have schema here)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS operational_segments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +35,6 @@ def init_db():
             );
         ''')
 
-        # Table for Bus Parameters (from config page)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS bus_parameters (
                 id INTEGER PRIMARY KEY CHECK (id = 1), -- Enforce only one row
@@ -45,10 +44,8 @@ def init_db():
                 critical_soc_warning_percent INTEGER
             );
         ''')
-        # Insert default values if the table is empty
         cur.execute("INSERT OR IGNORE INTO bus_parameters (id, ess_capacity_kwh, avg_energy_use_kw, low_soc_warning_percent, critical_soc_warning_percent) VALUES (1, 435, 55, 20, 10);")
 
-        # Table for Chargers (from config page)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS chargers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +70,6 @@ def editor(): return render_template('run_cut_editor.html')
 @app.route('/analytics')
 def analytics(): return render_template('fleet_analytics.html')
 
-# This route was from an old file, including it for completeness
 @app.route('/temp_insights')
 def temp_insights_page(): return render_template('temp_insights.html')
 
@@ -158,37 +154,78 @@ def handle_single_charger(charger_id):
 
 
 # --- Fleet Analytics API ---
-# Note: This is a simplified query_db for the analytics endpoint to avoid conflicts.
-def query_db_analytics(query, args=(), one=False):
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute(query, args)
-        rv = cur.fetchall()
-        conn.close()
-        if one: return dict(rv[0]) if rv else None
-        return [dict(row) for row in rv]
-    except Exception as e:
-        logger.error(f"DB Error. Query: {query}, Args: {args}, Error: {e}")
-        return None
-
 @app.route('/api/fleet_analytics_data', methods=['GET'])
 def get_fleet_analytics_data():
-    # This function remains the same as our working version
+    conn = get_db_conn()
+    cur = conn.cursor()
+    
     try:
         low_temp = float(request.args.get('low_temp', -100))
         high_temp = float(request.args.get('high_temp', 200))
-        timeseries_bus = request.args.get('timeseries_bus', None)
+        timeseries_buses_str = request.args.get('timeseries_buses', None)
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid filter parameters"}), 400
 
-    if timeseries_bus:
-        ts_params = [low_temp, high_temp, timeseries_bus]
-        time_series_query = "SELECT date, SUM(energy_used_kwh) / NULLIF(SUM(duration_hours), 0) as avg_power_kw, AVG(average_temperature_f) as avg_temp FROM operational_segments WHERE average_temperature_f BETWEEN ? AND ? AND bus = ? AND activity_type = 'DRIVING' AND duration_hours > 0 GROUP BY date ORDER BY date ASC"
-        time_series_data = query_db_analytics(time_series_query, ts_params) or []
-        return jsonify(time_series_data)
+    if timeseries_buses_str:
+        try:
+            # --- MODIFICATION START: Convert bus IDs to integers ---
+            bus_list = [int(bus.strip()) for bus in timeseries_buses_str.split(',') if bus.strip()]
+            # --- MODIFICATION END ---
+        except ValueError:
+            return jsonify({"error": "Invalid bus ID in list. IDs must be integers."}), 400
+        
+        if not bus_list:
+            return jsonify({"error": "No buses specified for time-series"}), 400
 
+        placeholders = ','.join(['?'] * len(bus_list))
+        
+        time_series_query = f"""
+            SELECT 
+                bus, 
+                date, 
+                SUM(energy_used_kwh) / NULLIF(SUM(duration_hours), 0) as avg_power_kw, 
+                AVG(average_temperature_f) as avg_temp 
+            FROM operational_segments 
+            WHERE average_temperature_f BETWEEN ? AND ? 
+              AND bus IN ({placeholders})
+              AND activity_type = 'DRIVING' 
+              AND duration_hours > 0 
+            GROUP BY bus, date 
+            ORDER BY bus, date ASC
+        """
+        
+        ts_params = [low_temp, high_temp] + bus_list
+        cur.execute(time_series_query, ts_params)
+        results = [dict(row) for row in cur.fetchall()]
+        conn.close()
+
+        if not results:
+            return jsonify({})
+
+        df = pd.DataFrame(results)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values(by=['bus', 'date'])
+        
+        df['moving_avg_power_kw'] = df.groupby('bus')['avg_power_kw'].transform(
+            lambda x: x.rolling(window=7, min_periods=1).mean()
+        )
+        
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        df['moving_avg_power_kw'] = df['moving_avg_power_kw'].round(2)
+        
+        # In JSON, object keys must be strings. Convert numeric bus IDs to strings for the output keys.
+        df['bus'] = df['bus'].astype(str)
+        bus_list_str = [str(bus_id) for bus_id in bus_list]
+
+        output_data = {}
+        for bus_id in bus_list_str:
+            bus_data = df[df['bus'] == bus_id].to_dict('records')
+            if bus_data:
+                output_data[bus_id] = bus_data
+
+        return jsonify(output_data)
+
+    # This part remains the same for the snapshot KPIs
     params = {'low_temp': low_temp, 'high_temp': high_temp}
     base_where = "WHERE average_temperature_f BETWEEN :low_temp AND :high_temp AND activity_type = 'DRIVING' AND duration_hours > 0"
     
@@ -208,18 +245,22 @@ def get_fleet_analytics_data():
             },
             'regen_offset_percent': (row.get('total_regen_kwh') or 0) / traction_kwh * 100 if traction_kwh > 0 else 0
         }
-
+    
     sql_aggregates = "SUM(energy_used_kwh) as total_energy_kwh, SUM(duration_hours) as total_duration_hours, SUM(mileage_miles) as total_mileage_miles, SUM(traction_energy_kwh) as total_traction_kwh, SUM(regen_energy_kwh) as total_regen_kwh, SUM(electric_heater_energy_kwh) as total_heater_kwh, SUM(rear_hvac_energy_kwh) as total_hvac_kwh, SUM(air_compressor_energy_kwh) as total_ac_kwh, SUM(lv_access_energy_kwh) as total_lv_kwh"
     all_buses_query = f"SELECT bus, {sql_aggregates} FROM operational_segments {base_where} GROUP BY bus"
-    filtered_bus_data = query_db_analytics(all_buses_query, params) or []
+    cur.execute(all_buses_query, params)
+    filtered_bus_data = [dict(row) for row in cur.fetchall()]
 
     calculated_data = {row['bus']: calculate_metrics_from_row(row) for row in filtered_bus_data}
     
     bus_list_query = "SELECT DISTINCT bus FROM operational_segments ORDER BY bus ASC"
-    all_bus_ids = [row['bus'] for row in query_db_analytics(bus_list_query) or []]
+    cur.execute(bus_list_query)
+    all_bus_ids = [row['bus'] for row in cur.fetchall()]
+    conn.close()
 
     default_metrics = {'avg_power_kw': 0, 'avg_economy_kwh_per_mile': 0, 'breakdown_kw': {}, 'regen_offset_percent': 0}
-    fleet_metrics_by_bus = {bus_id: calculated_data.get(bus_id, default_metrics) for bus_id in all_bus_ids}
+    # In JSON, keys must be strings. Convert bus IDs to strings for the keys here.
+    fleet_metrics_by_bus = {str(bus_id): calculated_data.get(bus_id, default_metrics) for bus_id in all_bus_ids}
     
     valid_buses = {k: v for k, v in fleet_metrics_by_bus.items() if v.get('avg_power_kw', 0) > 0}
 
@@ -249,7 +290,6 @@ def get_fleet_analytics_data():
 
 
 if __name__ == '__main__':
-    # Initialize the database on startup
     init_db()
     if not os.path.exists(DATABASE_PATH): 
         logger.error(f"DB not found at {DATABASE_PATH}")
