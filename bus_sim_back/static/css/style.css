@@ -1,4 +1,18 @@
 /* static/css/style.css */
+/* Sticky footer layout */
+html, body { height: 100%; }
+body {
+  min-height: 100dvh;          /* support mobile viewport units */
+  display: flex;
+  flex-direction: column;
+}
+.container {                   /* your main page wrapper */
+  flex: 1 0 auto;              /* take remaining height */
+}
+.site-footer {
+  flex: 0 0 auto;
+  margin-top: auto;            /* push to bottom */
+}
 
 /* 1. ROOT VARIABLES (OUR NEW DESIGN SYSTEM) */
 :root {
@@ -128,3 +142,46 @@ input[type="number"]:focus {
 .hidden { display: none !important; }
 .text-green { color: var(--color-green) !important; }
 .text-red { color: var(--color-red) !important; }
+
+/* --- Discreet footer --- */
+.site-footer{
+  margin-top: 24px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border, #23324d);
+  color: var(--muted, #9fb0cc);
+  opacity: .9;
+}
+.site-footer:hover{ opacity: 1; }
+
+.site-footer__inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.site-footer__brand img{
+  height: 28px; /* subtle; raise to 32 if you prefer */
+  width: auto;
+  display: block;
+}
+
+.site-footer__legal{
+  font-size: 12px;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  color: var(--muted, #9fb0cc);
+}
+
+/* If you want it to sit tighter to the page content */
+.container + .site-footer { margin-top: 16px; }
+
+/* Optional: sticky-at-bottom only when page is short */
+html, body { min-height: 100%; }
+body { display: flex; flex-direction: column; }
+.container { flex: 1 0 auto; }
+.site-footer { flex: 0 0 auto; }

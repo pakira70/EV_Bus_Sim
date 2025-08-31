@@ -1,16 +1,67 @@
+/*
+ * editor_style.css - Corrected Baseline for Readability in Dark Theme
+ * Objective: Adjust colors for readability (dark backgrounds, light text)
+ *            without breaking layout or "Select-Then-Act" paint UX.
+ *            Preserves sticky headers/columns and range-selected highlight.
+ */
+
 /* --- Basic Editor Styles --- */
-.editor-controls button { margin-left: 5px; padding: 5px 10px; cursor: pointer; }
-.editor-controls input[type="text"] { padding: 5px; }
-.status-message { margin-left: 10px; font-style: italic; }
+.editor-controls button {
+    margin-left: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    background-color: #007bff; /* Blue for action buttons */
+    color: #ffffff; /* White text */
+    border: 1px solid #0056b3;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+.editor-controls button:hover {
+    background-color: #0056b3;
+}
+.editor-controls input[type="text"] {
+    padding: 5px;
+    background-color: #3a3a3a; /* Dark background for input */
+    color: #f0f0f0; /* Light text for input */
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+.status-message {
+    margin-left: 10px;
+    font-style: italic;
+    color: #FFC107; /* Amber for status messages, good visibility */
+}
 
 /* --- Grid Container and Table Base --- */
-.schedule-grid-container { margin-top: 15px; max-height: 65vh; overflow: auto; border: 1px solid #ccc; }
-#schedule-grid { border-collapse: collapse; font-size: 0.8em; table-layout: fixed; /* Critical for sticky */ }
+/* Make the page's main container full-bleed on the editor page only */
+.editor-page .container {
+    max-width: none;   /* remove the usual 1140px-ish cap */
+    width: 100%;
+    margin: 0;         /* remove auto-centering gaps */
+    padding-left: 15px; /* keep a tiny gutter if you like */
+    padding-right: 15px;
+}
+.schedule-grid-container {
+    width: 100%;
+    max-width: none; /* prevents auto-capping */
+    margin-top: 15px;
+    max-height: 65vh;
+    overflow: auto;
+    border: 1px solid #555; /* Darker border for grid container */
+    background-color: #2e2e2e; /* Dark background for the grid area */
+    border-radius: 4px;
+}
+#schedule-grid {
+    border-collapse: collapse;
+    font-size: 0.8em;
+    table-layout: fixed; /* Critical for sticky */
+    color: #e0e0e0; /* Default text color for grid data */
+}
 
 /* --- General Cell Styling --- */
 #schedule-grid th,
 #schedule-grid td {
-    border: 1px solid #ddd;
+    border: 1px solid #444; /* Darker borders for cells */
     padding: 4px 6px;   /* Default padding */
     text-align: center;
     white-space: nowrap;
@@ -22,7 +73,8 @@
 
 /* --- Header Styling (Sticky Top & Above Sticky Columns) --- */
 #schedule-grid th {
-    background-color: #f2f2f2;
+    background-color: #333; /* Darker background for headers */
+    color: #f0f0f0; /* Light text for headers */
     position: sticky;
     top: 0;
     z-index: 15 !important; /* Header on top */
@@ -32,12 +84,18 @@
 /* --- Define Column Widths Explicitly --- */
 /* These widths will be used for offsets */
 :root {
-    --col-width-name: 110px; /* <<< REDUCED Name Width */
-    --col-width-type: 70px;  /* <<< Current Type Width */
-    --col-width-soc:  80%;  /* <<< Current SOC Width */
-    --col-width-time: 30px;  /* <<< Current Time Slot Width */
-    --col-width-actions: 80px;/* <<< Current Actions Width */
+  --col-width-name: 110px;   /* Bus Name width */
+  --col-width-type: 70px;    /* Type width */
+  --col-width-soc:  90px;    /* Start SOC width */
+  --col-width-actions: 80px; /* Actions width */
+
+  /* Time columns (auto-sized by JS) */
+  --time-cols: 96;        /* 24h × 4 (15-min slots) */
+  --time-col-min: 12px;   /* don’t go smaller than this (still paintable) */
+  --time-col-max: 28px;   /* cap to avoid giant cells on huge screens */
+  --col-width-time: 30px; /* default; JS will override dynamically */
 }
+
 
 /* --- COLUMN 1: Bus Name (Sticky Left Edge) --- */
 #schedule-grid th:nth-child(1),
@@ -46,15 +104,35 @@
     min-width: var(--col-width-name); /* Prevent shrinking */
     max-width: var(--col-width-name); /* Prevent growing */
     position: sticky;
-    
     left: 0px;
-    background-color: #f8f8f8;
+    background-color: #3a3a3a; /* Dark background for sticky column */
+    color: #f0f0f0; /* Light text for sticky column */
     z-index: 10;
     text-align: left;
     padding-left: 8px;
 }
-.bus-name-cell[contenteditable="true"] { cursor: text; background-color: #fff; outline: 1px dashed #ccc; }
-.bus-name-cell[contenteditable="true"]:focus { outline: 1px solid blue; background-color: #f0f8ff; }
+/* Bus name: clean + subtle focus */
+.bus-name-cell[contenteditable="true"] {
+  cursor: text;
+  background-color: #444;
+  color: #f0f0f0;
+  outline: none; /* no dotted line */
+  transition: background-color .12s, box-shadow .12s, color .12s;
+}
+.bus-name-cell[contenteditable="true"]:focus {
+  box-shadow: inset 0 0 0 1px #6aa0ff; /* subtle focus ring */
+  background-color: #555;
+}
+
+/* Optional: subtle hint while it’s an auto BUS# name */
+.bus-name-cell.is-auto {
+  font-style: italic;
+  color: #d6d6d6;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.25);
+}
+.bus-name-cell.is-auto:hover {
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.45);
+}
 
 
 /* --- COLUMN 2: Type (Sticky Next to Column 1) --- */
@@ -66,10 +144,19 @@
     position: sticky;
     /* Offset = Width of Col 1 */
     left: var(--col-width-name); /* Use variable */
-    background-color: #f8f8f8;
+    background-color: #3a3a3a; /* Dark background for sticky column */
+    color: #f0f0f0; /* Light text for sticky column */
     z-index: 10;
 }
-.bus-type-select { padding: 2px; font-size: 0.8em; border: 1px solid #ccc; max-width: 100%; box-sizing: border-box;}
+.bus-type-select {
+    padding: 2px;
+    font-size: 0.8em;
+    border: 1px solid #555; /* Darker border */
+    max-width: 100%;
+    box-sizing: border-box;
+    background-color: #444; /* Dark background for select */
+    color: #f0f0f0; /* Light text for select */
+}
 
 
 /* --- COLUMN 3: Start SOC (Sticky Next to Column 2) --- */
@@ -81,38 +168,46 @@
     position: sticky;
     /* Offset = Width of Col 1 + Width of Col 2 */
     left: calc(var(--col-width-name) + var(--col-width-type)); /* Use calc() for accuracy */
-    background-color: #f8f8f8;
+    background-color: #3a3a3a; /* Dark background for sticky column */
+    color: #f0f0f0; /* Light text for sticky column */
     z-index: 10;
 }
 /* SOC input style */
-.start-soc-input { padding: 2px; height: 24px;  font-size: 0.8em; border: 1px solid #ccc; max-width: 100%; box-sizing: border-box;}
+.start-soc-input {
+    padding: 2px;
+    height: 24px;
+    font-size: 0.75em !important;
+    border: 1px solid #555; /* Darker border */
+    box-sizing: border-box;
+    background-color: #444; /* Dark background for input */
+    color: #f0f0f0; /* Light text for input */
+}
 .start-soc-input::-webkit-outer-spin-button, .start-soc-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.start-soc-input:disabled { background-color: #eee; cursor: not-allowed; }
+.start-soc-input:disabled {
+    background-color: #333; /* Darker disabled background */
+    color: #888; /* Dimmed text for disabled */
+    cursor: not-allowed;
+}
 
 
 /* --- COLUMNS 4 to 99: Time Slots (Scrolling) --- */
 /* Style Time Slot HEADERS (TH) */
-#schedule-grid th:nth-child(n+4):nth-child(-n+99) {
+/* Time slot headers and cells use the CSS var for width */
+#schedule-grid th.time-slot,
+#schedule-grid td.time-slot {
     width: var(--col-width-time);
     min-width: var(--col-width-time);
     max-width: var(--col-width-time);
-    white-space: normal;
-    font-size: 0.7em;
-    line-height: 1.1;
-    padding-top: 2px; padding-bottom: 2px;
-    vertical-align: middle;
 }
-/* Style Time Slot DATA Cells (TD) */
-#schedule-grid td:nth-child(n+4):nth-child(-n+99) {
-    width: var(--col-width-time);
-    min-width: var(--col-width-time);
-    max-width: var(--col-width-time);
-    font-size: 0.8em;
-    cursor: cell;
-    padding-left: 2px; padding-right: 2px;
-}
-.time-slot.range-selected { background-color: rgba(0, 123, 255, 0.3) !important; outline: 1px dashed blue; }
 
+
+/* IMPORTANT: Preserve the range-selected for the paint UX */
+/* This is a temporary highlight, so it must be semi-transparent */
+.time-slot.range-selected {
+    background-color: rgba(0, 123, 255, 0.3) !important; /* Semi-transparent blue overlay */
+    outline: 1px dashed #007bff; /* Blue dashed outline */
+    color: inherit; /* Keep existing text color (if any) or inherit from parent */
+}
 
 /* --- LAST COLUMN: Actions (Not Sticky) --- */
 #schedule-grid th:last-child,
@@ -120,39 +215,527 @@
     width: var(--col-width-actions);
     min-width: var(--col-width-actions);
     max-width: var(--col-width-actions);
+    /* Background and color inherited or defined as needed for contrast */
+    background-color: #3a3a3a; /* Dark background for last column */
+    color: #f0f0f0;
 }
-.remove-bus-btn { padding: 2px 5px; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; cursor: pointer; border-radius: 3px; }
 
 
 /* --- Diesel Row Styling --- */
-.diesel-row { background-color: #fafafa; color: #333; }
-.diesel-row .bus-name-cell { font-style: italic; }
+.diesel-row {
+    background-color: #424242; /* Slightly different dark for diesel rows */
+    color: #cccccc; /* Lighter text for diesel rows */
+}
+.diesel-row .bus-name-cell {
+    font-style: italic;
+    background-color: #424242; /* Ensure sticky cell matches row */
+}
 
 
-/* --- Load Modal Styles (Keep Existing) --- */
-.modal-overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-.modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; position: relative; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); }
-.modal-close-btn { color: #aaa; position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; border: none; background: none; cursor: pointer; }
-.modal-close-btn:hover, .modal-close-btn:focus { color: black; text-decoration: none; }
+/* --- Load Modal Styles (Keep Existing, adjust for dark theme) --- */
+.modal-overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); /* Darker overlay */ }
+.modal-content {
+    background-color: #333; /* Dark background for modal */
+    color: #f0f0f0; /* Light text for modal */
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #555; /* Darker border */
+    width: 80%; max-width: 500px;
+    position: relative;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.5); /* Darker shadow */
+    border-radius: 8px;
+}
+.modal-close-btn {
+    color: #aaa;
+    position: absolute; top: 10px; right: 15px;
+    font-size: 28px; font-weight: bold;
+    border: none; background: none; cursor: pointer;
+}
+.modal-close-btn:hover, .modal-close-btn:focus { color: #f0f0f0; text-decoration: none; } /* Light hover color */
 #modal-run-cut-list ul { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
-#modal-run-cut-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+#modal-run-cut-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #444; /* Darker separator */
+    display: flex; justify-content: space-between; align-items: center;
+}
 #modal-run-cut-list li:last-child { border-bottom: none; }
 #modal-run-cut-list span { flex-grow: 1; margin-right: 10px; }
-#modal-run-cut-list button { padding: 5px 10px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 3px; }
+#modal-run-cut-list button {
+    padding: 5px 10px; cursor: pointer;
+    background-color: #4CAF50; /* Green button */
+    color: white; border: none; border-radius: 3px;
+}
 #modal-run-cut-list button:hover { background-color: #45a049; }
-#modal-run-cut-list button.delete-btn { background-color: #dc3545; margin-left: 8px; }
+#modal-run-cut-list button.delete-btn {
+    background-color: #dc3545; /* Red delete button */
+    margin-left: 8px;
+}
 #modal-run-cut-list button.delete-btn:hover { background-color: #c82333; }
 
-/* --- Simulation Results Styles --- */
-#simulation-results-container { margin-top: 20px; border: 1px solid #ccc; padding: 15px; display: none; background-color: #f9f9f9; }
-#simulation-results-container h2 { margin-top: 0; }
-#close-results-btn { float: right; padding: 3px 8px; cursor: pointer; }
-#simulation-output { clear: both; margin-top: 10px; }
-#simulation-output h4 { margin-bottom: 5px; margin-top: 10px; }
-#simulation-output ul { margin-top: 5px; padding-left: 20px; }
-#simulation-output p { margin: 5px 0; }
+/* --- Popover Styles (Adjust for dark theme) --- */
+.popover {
+    display: none;
+    position: absolute;
+    border: 1px solid #555; /* Darker border */
+    background-color: #333; /* Dark background for popover */
+    color: #f0f0f0; /* Light text for popover */
+    padding: 15px;
+    box-shadow: 3px 3px 5px rgba(0,0,0,0.5); /* Darker shadow */
+    z-index: 20;
+    border-radius: 6px;
+}
+.popover button {
+    margin: 3px;
+    background-color: #007bff; /* Blue for popover buttons */
+    color: #ffffff;
+    border: 1px solid #0056b3;
+    border-radius: 4px;
+}
+.popover button:hover {
+    background-color: #0056b3;
+}
+.popover hr {
+    margin: 10px 0;
+    border-color: #555; /* Darker horizontal rule */
+}
+/* Force Start SOC input width on the editor page */
+.editor-page #schedule-grid td:nth-child(3) .start-soc-input {
+  width: 40px !important;
+  min-width: 40px;
+  max-width: 40px;
+  box-sizing: border-box;
+}
+/* Force black text inside time-slot cells */
+.editor-page #schedule-grid td.time-slot {
+  color: #000 !important;
+}
 
-/* --- Popover Styles --- */
-.popover { display: none; position: absolute; border: 1px solid black; background-color: white; padding: 15px; box-shadow: 3px 3px 5px rgba(0,0,0,0.3); z-index: 20; }
-.popover button { margin: 3px; }
-.popover hr { margin: 10px 0; }
+/* If activity classes set their own colors, pin them to black too */
+.editor-page #schedule-grid td.activity-run,
+.editor-page #schedule-grid td.activity-break,
+.editor-page #schedule-grid td.activity-charge,
+.editor-page #schedule-grid td.activity-deadhead {
+  color: #000 !important;
+}
+
+/* ===== Modern paint & activity visuals ===== */
+:root {
+  /* activity fills (tweak to taste) */
+  --run-bg:     #4f8bf9;  /* blue */
+  --break-bg:   #f6c343;  /* amber */
+  --charge-bg:  #45c76f;  /* green */
+  --deadhead-bg:#a0a4ab;  /* neutral */
+
+  /* selection overlay */
+  --sel-bg:     rgba(79,139,249,0.25);
+  --sel-border: #4f8bf9;
+}
+
+/* Smaller, centered letters in time slots */
+#schedule-grid td.time-slot {
+  font-size: 0.60em;       /* smaller letters */
+  font-weight: 600;        /* crisp but compact */
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;              /* keep glyph centered */
+  line-height: 1.2;
+}
+
+/* Modern selection (no dashed outline) */
+#schedule-grid td.time-slot.range-selected {
+  background: var(--sel-bg) !important;
+  box-shadow: inset 0 0 0 2px var(--sel-border);
+  outline: none;
+}
+
+/* Activity fills (more specific than the base time-slot rule) */
+#schedule-grid td.time-slot.activity-run      { background-color: var(--run-bg);     color: #000 !important; }
+#schedule-grid td.time-slot.activity-break    { background-color: var(--break-bg);   color: #000 !important; }
+#schedule-grid td.time-slot.activity-charge   { background-color: var(--charge-bg);  color: #000 !important; }
+#schedule-grid td.time-slot.activity-deadhead { background-color: var(--deadhead-bg);color: #000 !important; }
+
+/* Subtle hover for feedback */
+#schedule-grid td.time-slot:hover {
+  filter: brightness(1.1);
+}
+/* ==== Modern paint + compact header (append at end) ==== */
+
+/* Keep your existing :root with col widths.
+   This adds/overrides only the new vars safely. */
+:root {
+  /* compact 15-min columns (adjust to taste) */
+  --time-col-min: 14px;   /* try 13–16px if you need more/less */
+  --time-col-max: 32px;
+
+  /* activity fills */
+  --run-bg:      #4f8bf9;  /* blue */
+  --break-bg:    #f6c343;  /* amber */
+  --charge-bg:   #45c76f;  /* green */
+  --deadhead-bg: #a0a4ab;  /* neutral */
+
+  /* neutral selection overlay */
+  --sel-bg: rgba(128,128,128,0.30);
+}
+
+/* Minutes row: smaller, no wrap */
+#schedule-grid thead .quarter-row th.time-slot {
+  font-size: 0.62em;
+  padding: 0 1px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Hour headers a touch smaller, too */
+#schedule-grid thead .hour-row th.hour {
+  font-size: 0.78em;
+  padding: 2px 0;
+  line-height: 1.05;
+}
+
+/* Ensure width is driven by the variable sizer */
+#schedule-grid th.time-slot,
+#schedule-grid td.time-slot {
+  width: var(--col-width-time);
+  min-width: var(--col-width-time);
+  max-width: var(--col-width-time);
+}
+
+/* Compact, centered letters in time cells */
+#schedule-grid td.time-slot {
+  font-size: 0.60em;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0 1px;
+  line-height: 1.2;
+}
+
+/* Modern selection: neutral grey fill, no dashed outline */
+#schedule-grid td.time-slot.range-selected {
+  background: var(--sel-bg) !important;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Activity fills (override base background) */
+#schedule-grid td.time-slot.activity-run      { background-color: var(--run-bg)      !important; color:#000 !important; }
+#schedule-grid td.time-slot.activity-break    { background-color: var(--break-bg)    !important; color:#000 !important; }
+#schedule-grid td.time-slot.activity-charge   { background-color: var(--charge-bg)   !important; color:#000 !important; }
+#schedule-grid td.time-slot.activity-deadhead { background-color: var(--deadhead-bg) !important; color:#000 !important; }
+
+/* Subtle hover feedback */
+#schedule-grid td.time-slot:hover { filter: brightness(1.08); }
+
+/* === Compact row height (body only) === */
+:root {
+  --row-h: 22px;   /* try 20–26px */
+  --row-vpad: 1px; /* vertical padding inside cells */
+}
+
+/* Shrink body rows without affecting headers */
+#schedule-grid tbody td {
+  padding-top: var(--row-vpad);
+  padding-bottom: var(--row-vpad);
+  height: var(--row-h);
+  line-height: calc(var(--row-h) - var(--row-vpad)*2);
+}
+
+/* Time-slot cells: tiny, centered letters, match the new height */
+#schedule-grid td.time-slot {
+  font-size: 0.60em;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0 1px;                 /* keep letters centered */
+  height: var(--row-h);
+  line-height: var(--row-h);      /* crisp vertical centering */
+}
+
+/* Make Type select and Start SOC input match the row height */
+#schedule-grid .bus-type-select,
+#schedule-grid .start-soc-input {
+  height: var(--row-h);
+  line-height: var(--row-h);
+  padding: 0 4px;                 /* compact interior */
+  font-size: 0.80em;              /* adjust if it feels cramped */
+}
+:root { --col-width-actions: 68px; } /* ensure this exists so your sizer accounts for it */
+
+#schedule-grid th.actions,
+#schedule-grid td.actions {
+  width: var(--col-width-actions);
+  min-width: var(--col-width-actions);
+  max-width: var(--col-width-actions);
+  text-align: center;
+}
+
+:root {
+  /* ensure your sizer sees this (your JS subtracts it) */
+  --col-width-actions: 68px;
+}
+
+#schedule-grid th.actions,
+#schedule-grid td.actions {
+  width: var(--col-width-actions);
+  min-width: var(--col-width-actions);
+  max-width: var(--col-width-actions);
+  text-align: center;
+  background-color: #3a3a3a; /* match your sticky cols tone */
+  color: #f0f0f0;
+}
+
+/* === Assign Activity popover → Material-ish card (Material-ish) === */
+:root{
+  /* fallback tokens if not already defined */
+  --md-surface-elev:#383838; --md-text:#f5f5f5; --md-sub:#bdbdbd; --md-border:#444;
+}
+.popover{
+  background: var(--md-surface-elev);
+  color: var(--md-text);
+  border: 1px solid var(--md-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.45);
+  min-width: 440px;
+}
+.popover h4{ margin:0 0 6px 0; font-size:.95em; font-weight:600; color:#e5e5e5; }
+#popover-cell-info{ margin:0 0 10px 0; color: var(--md-sub); font-size:.9em; }
+
+.popover .actions-grid{
+  display:grid; grid-template-columns:repeat(4, minmax(72px,1fr));
+  gap:8px; margin:8px 0 6px 0;
+}
+.popover .activity-btn{
+  width:100%; padding:8px 10px; border-radius:10px;
+  background:transparent; border:1.5px solid var(--md-border);
+  color:var(--md-text); font-weight:600; letter-spacing:.2px;
+}
+.popover .activity-btn[data-activity="RUN"]      { border-color:#42a5f5; }
+.popover .activity-btn[data-activity="BREAK"]    { border-color:#ffb300; }
+.popover .activity-btn[data-activity="CHARGE"]   { border-color:#66bb6a; }
+.popover .activity-btn[data-activity="DEADHEAD"] { border-color:#9e9e9e; }
+.popover .activity-btn[data-activity="RUN"]:hover      { background:rgba(66,165,245,.15); }
+.popover .activity-btn[data-activity="BREAK"]:hover    { background:rgba(255,179,0,.15); }
+.popover .activity-btn[data-activity="CHARGE"]:hover   { background:rgba(102,187,106,.15); }
+.popover .activity-btn[data-activity="DEADHEAD"]:hover { background:rgba(158,158,158,.15); }
+
+#charge-options{ display:none; margin-top:10px; border-top:1px solid var(--md-border); padding-top:10px; }
+#charge-options label{ display:block; margin-bottom:6px; color:var(--md-sub); font-size:.85em; }
+#charge-options select{
+  width:100%; background:#3a3a3a; color:var(--md-text);
+  border:1px solid var(--md-border); border-radius:10px; padding:8px 10px;
+}
+
+#popover-cancel{
+  margin-top:10px; float:right; background:transparent;
+  border:1px solid var(--md-border); color:var(--md-text);
+  border-radius:10px; padding:8px 12px;
+}
+#popover-cancel:hover{ background:#404040; }
+
+/* Dim page when popover is open (reuses dialog overlay) */
+#md-dialog-overlay.assign-visible{ display:block; z-index:1050; }
+/* === Assign Activity popover — match modal look, high contrast === */
+#activity-popover.popover{
+  /* Use near-black like a modal */
+  background: #111;           /* switch to #333 if you want to match Save/Load exactly */
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+
+/* Title + info text: clear, readable */
+#activity-popover.popover h4{
+  color: #fff;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+#activity-popover #popover-cell-info{
+  color: #d8d8d8;  /* was too dim */
+  font-size: .9em;
+  margin: 0 0 10px 0;
+}
+
+/* Action buttons: neutral outlined (no colored borders) */
+#activity-popover .actions-grid{ gap: 8px; }
+#activity-popover .activity-btn{
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid #555;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+#activity-popover .activity-btn:hover{
+  background: #222;
+  border-color: #666;
+}
+
+/* Neutralize any per-activity color overrides from earlier rules */
+#activity-popover .activity-btn[data-activity="RUN"],
+#activity-popover .activity-btn[data-activity="BREAK"],
+#activity-popover .activity-btn[data-activity="CHARGE"],
+#activity-popover .activity-btn[data-activity="DEADHEAD"]{
+  border-color: #555 !important;
+  background: transparent !important;
+}
+
+/* Cancel button: readable on dark */
+#activity-popover #popover-cancel{
+  background: #111;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+#activity-popover #popover-cancel:hover{
+  background: #1a1a1a;
+  border-color: #777;
+}
+
+/* Charge select inside popover: dark theme */
+#activity-popover #charge-options{
+  border-top: 1px solid #333;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+#activity-popover #charge-options select{
+  background: #1a1a1a;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+/* =========================================================
+   Assign Activity popover — dark modal look + colored borders
+   Paste at the very bottom of editor_style.css
+   ========================================================= */
+
+/* Fallback tokens (only used here) */
+:root {
+  --aa-surface: #111;   /* change to #333 if you prefer the Save/Load tone */
+  --aa-text:    #fff;
+  --aa-sub:     #d8d8d8;
+  --aa-border:  #444;
+}
+
+/* Popover container: dark, high contrast, modal-like */
+#activity-popover.popover {
+  background: var(--aa-surface) !important;
+  color: var(--aa-text) !important;
+  border: 1px solid var(--aa-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55) !important;
+}
+
+/* Title + info text */
+#activity-popover.popover h4 {
+  color: var(--aa-text) !important;
+  font-weight: 600 !important;
+  margin: 0 0 6px 0 !important;
+}
+#activity-popover #popover-cell-info {
+  color: var(--aa-sub) !important;
+  font-size: .9em !important;
+  margin: 0 0 10px 0 !important;
+}
+
+/* Button layout: grid if available, otherwise inline fallback */
+#activity-popover .actions-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(72px, 1fr)) !important;
+  gap: 8px !important;
+  margin: 8px 0 6px 0 !important;
+}
+
+/* Action buttons: neutral text, colored outline only (no fills) */
+#activity-popover .activity-btn {
+  display: inline-block;
+  width: 100%;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--aa-text) !important;
+  border: 1.6px solid #555 !important; /* base; overridden below per activity */
+  font-weight: 600 !important;
+  letter-spacing: .2px !important;
+}
+
+/* Per-activity outline colors */
+#activity-popover .activity-btn[data-activity="RUN"]      { border-color: #42a5f5 !important; }
+#activity-popover .activity-btn[data-activity="BREAK"]    { border-color: #ffb300 !important; }
+#activity-popover .activity-btn[data-activity="CHARGE"]   { border-color: #66bb6a !important; }
+#activity-popover .activity-btn[data-activity="DEADHEAD"] { border-color: #9e9e9e !important; }
+
+/* Hover: keep transparent, subtly brighten */
+#activity-popover .activity-btn:hover {
+  background: transparent !important;
+  box-shadow: 0 0 0 2px currentColor inset !important;
+}
+
+/* Cancel button: readable on dark */
+#activity-popover #popover-cancel {
+  background: var(--aa-surface) !important;
+  color: var(--aa-text) !important;
+  border: 1px solid #666 !important;
+  border-radius: 10px !important;
+  padding: 8px 12px !important;
+}
+#activity-popover #popover-cancel:hover {
+  background: #1a1a1a !important;
+  border-color: #777 !important;
+}
+
+/* Charge options: divider + dark select */
+#activity-popover #charge-options {
+  border-top: 1px solid #333 !important;
+  margin-top: 10px !important;
+  padding-top: 10px !important;
+}
+#activity-popover #charge-options label {
+  color: var(--aa-sub) !important;
+  font-size: .85em !important;
+}
+#activity-popover #charge-options select {
+  width: 100% !important;
+  background: #1a1a1a !important;
+  color: var(--aa-text) !important;
+  border: 1px solid #555 !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+}
+
+/* Ensure overlay shows when your JS toggles it */
+#md-dialog-overlay.assign-visible { display: block !important; z-index: 1050 !important; }
+/* Start SOC disabled look (diesel) */
+.start-soc-input:disabled{
+  background:#222;
+  color:#888;
+  cursor:not-allowed;
+  border-color:#333;
+}
+
+/* Popover Charge button disabled look */
+#activity-popover .activity-btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  box-shadow:none !important;
+}
+#activity-popover .activity-btn:disabled:hover{
+  background:transparent !important;
+  box-shadow:none !important;
+}
+/* Make sure the assign popover sits above the overlay */
+#md-dialog-overlay.assign-visible { 
+  display: block !important; 
+  z-index: 1100 !important; 
+}
+
+/* Popover must be higher than overlay and accept clicks */
+#activity-popover.popover {
+  position: absolute !important;
+  z-index: 1101 !important;
+  pointer-events: auto !important;
+}
