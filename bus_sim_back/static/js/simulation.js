@@ -1,173 +1,280 @@
 /**
- * EV Bus Energy Simulation Engine
+ * EV Bus Energy Simulation Engine + Editor adapter
+ * - Robust adapter converts editor state -> engine inputs
+ * - No crash if schedules/rows missing
+ * - Leaves coloring/marking to the editor (optional later)
  */
 
-// Constants
-const NUM_TIME_SLOTS = 96;
+// ---------------- Engine ----------------
+
+const SLOTS = window.SLOTS ?? 96;
 const SLOT_DURATION_MINUTES = 15;
 const SLOT_DURATION_HOURS = SLOT_DURATION_MINUTES / 60;
-const STRANDED_THRESHOLD = 5; // Fixed percentage
+const STRANDED_THRESHOLD = 5; // %
 
-/**
- * Runs the energy simulation.
- * @param {object} runCutData - The run cut data object. Expected buses array with { busId, busName, busType, startSOC, schedule }.
- * @param {object} busParameters - Bus config including thresholds { essCapacity, euRate, ... }.
- * @param {array} availableChargers - Array of charger objects.
- * @returns {object} - Simulation results including trigger times.
- */
 function runSimulation(runCutData, busParameters, availableChargers) {
-    console.log("Starting simulation (Handles Diesel/Deadhead)...");
+  console.log("Starting simulation (Handles Diesel/Deadhead)...");
 
-    const results = { resultsPerBus: {}, overallErrors: [] };
+  const results = { resultsPerBus: {}, overallErrors: [] };
 
-    // --- Input Validation ---
-    if (!runCutData || !runCutData.buses || runCutData.buses.length === 0) { results.overallErrors.push("Simulation Error: No bus data provided."); return results; }
-    if (!busParameters || typeof busParameters.essCapacity !== 'number' || busParameters.essCapacity <= 0 || typeof busParameters.euRate !== 'number' || busParameters.euRate < 0 || typeof busParameters.warningThresholdLow !== 'number' || typeof busParameters.warningThresholdCritical !== 'number' ) { results.overallErrors.push("Simulation Error: Invalid or missing bus parameters. Check Configuration."); return results; }
-    if (!availableChargers || !Array.isArray(availableChargers)) { console.warn("Simulation Warning: No available charger data provided."); availableChargers = []; }
-
-    const essCapacity = busParameters.essCapacity;
-    const euRate = busParameters.euRate; // Energy use rate for RUN and DEADHEAD
-    const lowThreshold = busParameters.warningThresholdLow;
-    const criticalThreshold = busParameters.warningThresholdCritical;
-
-    // --- Simulate each bus ---
-    runCutData.buses.forEach(bus => {
-        // *** NEW: Check Bus Type ***
-        if (bus.busType && bus.busType === 'Diesel') {
-            console.log(`Skipping simulation for Diesel bus: ${bus.busName || bus.busId}`);
-            // Add placeholder result for Diesel bus
-            results.resultsPerBus[bus.busId] = {
-                socTimeSeries: Array(NUM_TIME_SLOTS + 1).fill('N/A'), // Array of N/A for SOC
-                errors: ["Bus type is Diesel - simulation not applicable."],
-                totalEnergyConsumedKWh: 'N/A',
-                totalEnergyChargedKWh: 'N/A',
-                triggerTimes: { low: null, critical: null, stranded: null },
-                isDiesel: true // Add flag for display logic
-            };
-            return; // Skip to the next bus using 'return' inside forEach
-        }
-
-        // --- Proceed with simulation for non-Diesel buses ---
-        console.log(`Simulating BEB bus: ${bus.busName || bus.busId}`);
-        const busResult = {
-            socTimeSeries: [],
-            errors: [],
-            totalEnergyConsumedKWh: 0,
-            totalEnergyChargedKWh: 0,
-            triggerTimes: { low: null, critical: null, stranded: null },
-            isDiesel: false // Mark as not diesel
-        };
-        results.resultsPerBus[bus.busId] = busResult;
-
-        let currentSOC = bus.startSOC;
-        let warnedLowText = false;
-        let warnedCriticalText = false;
-        let warnedStrandedText = false;
-
-        // Loop through each time slot
-        for (let i = 0; i < NUM_TIME_SLOTS; i++) {
-            busResult.socTimeSeries.push(currentSOC); // Record SOC at START
-
-            const scheduleEntry = bus.schedule[i];
-            const activity = scheduleEntry ? scheduleEntry.activity : 'BREAK';
-            const chargerId = scheduleEntry ? scheduleEntry.chargerId : null;
-            const timeStr = minutesToTimeSim(i * SLOT_DURATION_MINUTES);
-
-            let energyChangeKWh = 0;
-            let actualEnergyConsumedKWh = 0;
-            let actualEnergyChargedKWh = 0;
-
-            // Check for attempted RUN/DEADHEAD at 0 SOC first
-            if (currentSOC <= 0 && (activity === 'RUN' || activity === 'DEADHEAD')) {
-                 if (!warnedStrandedText) {
-                    busResult.errors.push(`Stranded Alert at ${timeStr}: Attempted ${activity} with 0% SOC.`);
-                    warnedStrandedText = true;
-                 }
-                 if (busResult.triggerTimes.stranded === null) {
-                     busResult.triggerTimes.stranded = i;
-                 }
-            }
-
-            switch (activity) {
-                // *** MODIFIED: Handle DEADHEAD same as RUN ***
-                case 'RUN':
-                case 'DEADHEAD':
-                    if (currentSOC > 0) {
-                        const theoreticalEnergyDemandKWh = euRate * SLOT_DURATION_HOURS;
-                        const maxAvailableEnergyKWh = (currentSOC / 100) * essCapacity;
-                        actualEnergyConsumedKWh = Math.min(theoreticalEnergyDemandKWh, maxAvailableEnergyKWh);
-                        energyChangeKWh = -actualEnergyConsumedKWh;
-                        // Accumulation happens after the switch now
-                    } else {
-                        energyChangeKWh = 0; // Cannot consume if already at 0
-                    }
-                    break;
-
-                case 'CHARGE':
-                    let potentialChargeKWh = 0;
-                    if (chargerId) {
-                         const charger = availableChargers.find(ch => ch.id === chargerId);
-                         if (charger && typeof charger.rate === 'number' && charger.rate > 0) { potentialChargeKWh = charger.rate * SLOT_DURATION_HOURS; }
-                         else { if (!busResult.errors.some(e => e.includes(`Charger ID "${chargerId}" missing/invalid`))) { busResult.errors.push(`Config Error: Charger ID "${chargerId}" missing/invalid in configuration.`); } console.warn(`Bus ${bus.busName || bus.busId}, Time ${timeStr}: Charger ${chargerId} not found/invalid rate.`); potentialChargeKWh = 0; }
-                     } else {
-                          if (!busResult.errors.some(e => e.includes(`CHARGE activity at ${timeStr} has no charger`))) { busResult.errors.push(`Schedule Error at ${timeStr}: CHARGE activity has no charger assigned.`); } potentialChargeKWh = 0;
-                     }
-                    const maxChargeToReach100 = ((100 - currentSOC) / 100) * essCapacity;
-                    actualEnergyChargedKWh = Math.min(potentialChargeKWh, Math.max(0, maxChargeToReach100));
-                    energyChangeKWh = actualEnergyChargedKWh;
-                    // Accumulation happens after the switch now
-                    break;
-
-                case 'BREAK':
-                default:
-                    energyChangeKWh = 0;
-                    break;
-            }
-
-            // Accumulate totals based on *actual* change calculated
-            if (energyChangeKWh < 0) {
-                busResult.totalEnergyConsumedKWh += Math.abs(energyChangeKWh);
-            } else if (energyChangeKWh > 0) {
-                busResult.totalEnergyChargedKWh += energyChangeKWh;
-            }
-
-            const socChange = (energyChangeKWh / essCapacity) * 100;
-            const epsilon = 0.00001;
-            const potentialNextSOC = currentSOC + socChange;
-
-            // --- Check thresholds and record *first* trigger time index ---
-            if (potentialNextSOC < STRANDED_THRESHOLD - epsilon && busResult.triggerTimes.stranded === null) {
-                busResult.triggerTimes.stranded = i;
-                if (!warnedStrandedText) { busResult.errors.push(`Stranded Alert at ${timeStr}: SOC dropped below ${STRANDED_THRESHOLD}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedStrandedText = true; }
-            }
-            if (potentialNextSOC < criticalThreshold - epsilon && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
-                 busResult.triggerTimes.critical = i;
-                 if (!warnedCriticalText) { busResult.errors.push(`Critical SOC at ${timeStr}: SOC dropped below ${criticalThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedCriticalText = true; }
-            }
-            if (potentialNextSOC < lowThreshold - epsilon && busResult.triggerTimes.low === null && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
-                 busResult.triggerTimes.low = i;
-                 if (!warnedLowText) { busResult.errors.push(`Low SOC Warning at ${timeStr}: SOC dropped below ${lowThreshold}% (predicted ${potentialNextSOC.toFixed(1)}%)`); warnedLowText = true; }
-            }
-
-            // Update SOC for the *next* interval, applying constraints (0-100)
-            currentSOC = Math.max(0, Math.min(100, potentialNextSOC)); // Clamp SOC
-
-        } // End time slot loop
-
-        // Add final SOC state to time series
-        busResult.socTimeSeries.push(currentSOC);
-
-        console.log(`Finished BEB bus: ${bus.busName || bus.busId}. Final SOC: ${currentSOC.toFixed(1)}%. Consumed: ${busResult.totalEnergyConsumedKWh.toFixed(1)} kWh, Charged: ${busResult.totalEnergyChargedKWh.toFixed(1)} kWh.`);
-
-    }); // End bus loop
-
-    console.log("Simulation finished.");
+  // Validate
+  if (!runCutData || !Array.isArray(runCutData.buses) || runCutData.buses.length === 0) {
+    results.overallErrors.push("Simulation Error: No bus data provided.");
     return results;
+  }
+  if (!busParameters
+      || typeof busParameters.essCapacity !== 'number' || busParameters.essCapacity <= 0
+      || typeof busParameters.euRate !== 'number' || busParameters.euRate < 0
+      || typeof busParameters.warningThresholdLow !== 'number'
+      || typeof busParameters.warningThresholdCritical !== 'number') {
+    results.overallErrors.push("Simulation Error: Invalid or missing bus parameters. Check Configuration.");
+    return results;
+  }
+  if (!availableChargers || !Array.isArray(availableChargers)) {
+    console.warn("Simulation Warning: No available charger data provided.");
+    availableChargers = [];
+  }
+
+  const essCapacity = busParameters.essCapacity;
+  const euRate = busParameters.euRate; // kWh per hour during RUN/DEADHEAD
+  const lowThreshold = busParameters.warningThresholdLow;
+  const criticalThreshold = busParameters.warningThresholdCritical;
+
+  runCutData.buses.forEach(bus => {
+    // Diesel: skip simulation but produce placeholder
+    if (bus.busType === 'Diesel') {
+      results.resultsPerBus[bus.busId] = {
+        socTimeSeries: Array(SLOTS + 1).fill('N/A'),
+        errors: ["Bus type is Diesel - simulation not applicable."],
+        totalEnergyConsumedKWh: 'N/A',
+        totalEnergyChargedKWh: 'N/A',
+        triggerTimes: { low: null, critical: null, stranded: null },
+        isDiesel: true
+      };
+      return;
+    }
+
+    console.log(`Simulating BEB bus: ${bus.busName || bus.busId}`);
+    const busResult = {
+      socTimeSeries: [],
+      errors: [],
+      totalEnergyConsumedKWh: 0,
+      totalEnergyChargedKWh: 0,
+      triggerTimes: { low: null, critical: null, stranded: null },
+      isDiesel: false
+    };
+    results.resultsPerBus[bus.busId] = busResult;
+
+    // Guard: ensure schedule array exists
+    const schedule = Array.isArray(bus.schedule) ? bus.schedule : Array(SLOTS).fill(null);
+
+    let currentSOC = Number(bus.startSOC);
+    if (!Number.isFinite(currentSOC)) currentSOC = 90; // default
+
+    let warnedLowText = false;
+    let warnedCriticalText = false;
+    let warnedStrandedText = false;
+
+    for (let i = 0; i < SLOTS; i++) {
+      busResult.socTimeSeries.push(currentSOC); // SOC at start of slot
+
+      const scheduleEntry = schedule[i] || null;
+      const activity = scheduleEntry?.activity || 'BREAK';
+      const chargerId = scheduleEntry?.chargerId ?? null;
+      const timeStr = minutesToTimeSim(i * SLOT_DURATION_MINUTES);
+
+      let energyChangeKWh = 0;
+
+      // Stranded attempt
+      if (currentSOC <= 0 && (activity === 'RUN' || activity === 'DEADHEAD')) {
+        if (!warnedStrandedText) {
+          busResult.errors.push(`Stranded Alert at ${timeStr}: Attempted ${activity} with 0% SOC.`);
+          warnedStrandedText = true;
+        }
+        if (busResult.triggerTimes.stranded === null) {
+          busResult.triggerTimes.stranded = i;
+        }
+      }
+
+      switch (activity) {
+        case 'RUN':
+        case 'DEADHEAD': {
+          if (currentSOC > 0) {
+            const theoreticalEnergyDemandKWh = euRate * SLOT_DURATION_HOURS;    // kWh this slot
+            const maxAvailableEnergyKWh = (currentSOC / 100) * essCapacity;
+            const actual = Math.min(theoreticalEnergyDemandKWh, maxAvailableEnergyKWh);
+            energyChangeKWh = -actual;
+          }
+          break;
+        }
+        case 'CHARGE': {
+          let potential = 0;
+          if (chargerId) {
+            const ch = availableChargers.find(c => String(c.id) === String(chargerId));
+            const rate = Number(ch?.rate);
+            if (Number.isFinite(rate) && rate > 0) {
+              potential = rate * SLOT_DURATION_HOURS;
+            } else {
+              if (!busResult.errors.some(e => e.includes(`Charger ID "${chargerId}" missing/invalid`))) {
+                busResult.errors.push(`Config Error: Charger ID "${chargerId}" missing/invalid in configuration.`);
+              }
+            }
+          } else {
+            if (!busResult.errors.some(e => e.includes('CHARGE activity has no charger'))) {
+              busResult.errors.push(`Schedule Error at ${timeStr}: CHARGE activity has no charger assigned.`);
+            }
+          }
+          const maxTo100 = ((100 - currentSOC) / 100) * essCapacity;
+          const actual = Math.min(potential, Math.max(0, maxTo100));
+          energyChangeKWh = actual;
+          break;
+        }
+        case 'BREAK':
+        default:
+          energyChangeKWh = 0;
+      }
+
+      if (energyChangeKWh < 0) busResult.totalEnergyConsumedKWh += Math.abs(energyChangeKWh);
+      if (energyChangeKWh > 0) busResult.totalEnergyChargedKWh  += energyChangeKWh;
+
+      const socChange = (energyChangeKWh / essCapacity) * 100;
+      const potentialNextSOC = currentSOC + socChange;
+      const eps = 1e-6;
+
+      if (potentialNextSOC < STRANDED_THRESHOLD - eps && busResult.triggerTimes.stranded === null) {
+        busResult.triggerTimes.stranded = i;
+        if (!warnedStrandedText) { busResult.errors.push(`Stranded Alert at ${timeStr}: SOC < ${STRANDED_THRESHOLD}% (pred ${potentialNextSOC.toFixed(1)}%)`); warnedStrandedText = true; }
+      }
+      if (potentialNextSOC < criticalThreshold - eps && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
+        busResult.triggerTimes.critical = i;
+        if (!warnedCriticalText) { busResult.errors.push(`Critical SOC at ${timeStr}: SOC < ${criticalThreshold}% (pred ${potentialNextSOC.toFixed(1)}%)`); warnedCriticalText = true; }
+      }
+      if (potentialNextSOC < lowThreshold - eps && busResult.triggerTimes.low === null && busResult.triggerTimes.critical === null && busResult.triggerTimes.stranded === null) {
+        busResult.triggerTimes.low = i;
+        if (!warnedLowText) { busResult.errors.push(`Low SOC at ${timeStr}: SOC < ${lowThreshold}% (pred ${potentialNextSOC.toFixed(1)}%)`); warnedLowText = true; }
+      }
+
+      currentSOC = Math.max(0, Math.min(100, potentialNextSOC)); // clamp
+    }
+
+    busResult.socTimeSeries.push(currentSOC); // final
+  });
+
+  console.log("Simulation finished.");
+  return results;
 }
 
-// Helper function
 function minutesToTimeSim(totalMinutes) {
-    const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const minutes = (totalMinutes % 60).toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
+  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
+
+// ---------------- Editor adapter ----------------
+
+(function(){
+  // Keep the original engine ref
+  const engineRunSimulation = runSimulation;
+
+  function showResultsHTML(html){
+    const box = document.getElementById('simulation-results-container');
+    const out = document.getElementById('simulation-output');
+    if (out) out.innerHTML = html;
+    if (box) box.style.display = 'block';
+  }
+  function showResultsText(text){
+    const box = document.getElementById('simulation-results-container');
+    const out = document.getElementById('simulation-output');
+    if (out) out.textContent = text || '';
+    if (box) box.style.display = 'block';
+  }
+
+  async function resolveBusParameters(){
+    if (window.busParameters) return window.busParameters;
+    if (window.CONFIG?.busParameters) return window.CONFIG.busParameters;
+    // fallback defaults (match your config UI expectations)
+    return {
+      essCapacity: Number(document.getElementById('ess-capacity')?.value) || 400,
+      euRate: Number(document.getElementById('eu-rate')?.value) || 55,
+      warningThresholdLow: Number(document.getElementById('warning-threshold-low')?.value) || 20,
+      warningThresholdCritical: Number(document.getElementById('warning-threshold-critical')?.value) || 10
+    };
+  }
+
+  async function resolveChargers(){
+    if (Array.isArray(window.availableChargers)) return normalizeChargers(window.availableChargers);
+    if (Array.isArray(window.chargers))          return normalizeChargers(window.chargers);
+    try{
+      const res = await fetch('/api/chargers');
+      if (res.ok) return normalizeChargers(await res.json());
+    } catch {}
+    return [];
+  }
+  function normalizeChargers(arr){
+    return (arr || []).map(ch => ({
+      id: ch.id ?? ch.chargerId ?? ch.name ?? '',
+      rate: typeof ch.rate === 'number' ? ch.rate
+           : typeof ch.rate_kw === 'number' ? ch.rate_kw
+           : typeof ch.rateKw === 'number' ? ch.rateKw : 0
+    }));
+  }
+
+  function toRunCutData(editorState){
+    const slots = window.SLOTS ?? 96;
+    const store = editorState?.data || window.scheduleData || {};
+    const busesList = editorState?.buses || [];
+
+    const buses = busesList.map(b => {
+      const busId = b.id || b.busId || b.busName || 'BUS';
+      const row   = store[busId] || Array(slots).fill(null);
+      const schedule = Array.from({length: slots}, (_, i) => {
+        const ev = row[i];
+        return {
+          activity: ev?.type || 'BREAK',
+          chargerId: ev?.chargerId ?? null
+        };
+      });
+      return {
+        busId,
+        busName: busId,
+        busType: b.type || b.busType || 'EV',
+        startSOC: Number.isFinite(Number(b.soc ?? b.startSOC)) ? Number(b.soc ?? b.startSOC) : 90,
+        schedule
+      };
+    });
+
+    return { buses };
+  }
+
+  async function runSimulationFromEditor(editorState){
+    try{
+      const runCutData       = toRunCutData(editorState);
+      const busParameters    = await resolveBusParameters();
+      const availableChargers= await resolveChargers();
+
+      const results = engineRunSimulation(runCutData, busParameters, availableChargers);
+
+      // Simple readable summary (you can replace with charts later)
+      const busIds = Object.keys(results.resultsPerBus || {});
+      const html = `
+        <div><strong>Simulation complete.</strong></div>
+        <div>Buses: ${busIds.length}</div>
+        <ul style="margin-top:8px">
+          ${busIds.map(id => {
+            const r = results.resultsPerBus[id];
+            const finalSOC = Array.isArray(r?.socTimeSeries) ? r.socTimeSeries.at(-1) : 'n/a';
+            const errs = (r?.errors || []).slice(0,2).map(e=>`<div style="color:#f88">• ${e}</div>`).join('');
+            return `<li><strong>${id}</strong> — Final SOC: ${typeof finalSOC==='number'?finalSOC.toFixed(1)+'%':finalSOC}${errs?errs:''}</li>`;
+          }).join('')}
+        </ul>
+      `;
+      showResultsHTML(html);
+    } catch (e){
+      console.error('[simulation adapter] error:', e);
+      showResultsText('Simulation error. See console for details.');
+    }
+  }
+
+  // publish wrapper that the editor will call via event
+  window.addEventListener('run-simulation', (e) => runSimulationFromEditor(e.detail));
+})();

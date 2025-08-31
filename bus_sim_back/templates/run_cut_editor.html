@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/editor_style.css') }}">
 </head>
-<body>
+    <body class="editor-page"></body>
     <div class="container"> <!-- Wrapped content in a container for consistency -->
         <h1>Run/Charge Schedule Editor</h1>
         
@@ -24,12 +24,13 @@
         <div class="editor-controls">
             <label for="run-cut-name">Schedule Name:</label>
             <input type="text" id="run-cut-name" placeholder="e.g., Weekday Peak Schedule">
-            <button id="save-run-cut-btn">💾 Save Schedule</button>
-            <button id="load-run-cut-btn">📂 Load Schedule</button>
-            <button id="clear-run-cut-btn">🗑️ Clear Schedule</button>
-            <button id="add-bus-btn">➕ Add Bus</button>
+            <button id="save-run-cut-btn">Save Schedule</button>
+            <button id="load-run-cut-btn">Load Schedule</button>
+            <button id="clear-run-cut-btn">Clear Schedule</button>
+            <button id="add-bus-btn">Add Bus</button>
+             <button id="run-simulation-btn" style="background-color: #007bff; color: white;">Run Simulation</button>
             <span id="run-cut-status" class="status-message"></span>
-            <button id="run-simulation-btn" style="background-color: #007bff; color: white;">▶️ Run Simulation</button>
+           
         </div>
 
         <div class="schedule-grid-container">
@@ -54,10 +55,10 @@
         <div id="activity-popover" class="popover" style="display: none; position: absolute; border: 1px solid black; background-color: white; padding: 15px; box-shadow: 3px 3px 5px rgba(0,0,0,0.3);">
             <h4>Assign Activity</h4>
             <p><strong id="popover-cell-info">Bus: ?, Time: ?</strong></p>
-            <button class="activity-btn" data-activity="RUN">🟦 RUN</button>
-            <button class="activity-btn" data-activity="BREAK">🟨 BREAK</button>
-            <button class="activity-btn" data-activity="CHARGE">🟩 CHARGE</button>
-            <button class="activity-btn" data-activity="DEADHEAD" style="background-color: #cccccc;">⚫ DEADHEAD</button>
+            <button class="activity-btn" data-activity="RUN">RUN</button>
+            <button class="activity-btn" data-activity="BREAK">BREAK</button>
+            <button class="activity-btn" data-activity="CHARGE">CHARGE</button>
+            <button class="activity-btn" data-activity="DEADHEAD" style="background-color: #cccccc;">DEADHEAD</button>
 
             <div id="charge-options" style="display: none; margin-top: 10px;">
                 <label for="charger-select">Select Charger:</label>
@@ -80,11 +81,156 @@
         </div>
     </div> <!-- Closing container div -->
 
-    <!-- JavaScript Links -->
-    <script src="{{ url_for('static', filename='js/run_cut_editor.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
-    <!-- ADDED: Link to main script for navigation handler -->
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <!-- One-time global (before your app scripts) -->
+<script>
+  window.NUM_TIME_SLOTS = 96;
+  console.log('[html] NUM_TIME_SLOTS =', window.NUM_TIME_SLOTS);
+</script>
+
+<!-- CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/editor_style.css') }}?v=perm1">
+
+<!-- Vendor libs -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/nouislider/distribute/nouislider.min.js"></script>
+
+<!-- Your app scripts (ensure there is NO old tag pointing to /static/js/run_cut_editor.js) -->
+<script src="{{ url_for('static', filename='js/script.js') }}?v=perm1"></script>
+<script src="{{ url_for('static', filename='css/run_cut_editor.js') }}?v=perm1"></script>
+<script src="{{ url_for('static', filename='js/simulation.js') }}?v=perm1"></script>
+
+<!-- place this AFTER your app scripts, right before </body> -->
+<script>
+(function () {
+  function whenReady(fn){
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else { fn(); }
+  }
+
+  whenReady(function () {
+    const table = document.getElementById('schedule-grid');
+    const thead = table?.tHead || table?.querySelector('thead') || table?.createTHead();
+    const tbody = table?.tBodies?.[0] || table?.querySelector('tbody');
+    if (!table || !thead || !tbody) { console.warn('[enhancer] table parts missing'); return; }
+
+    // --- 1) Ensure an Actions header (far right), spanning both header rows if present
+    const firstHeaderRow = thead.querySelector('tr.hour-row') || thead.rows[0];
+    if (firstHeaderRow && !firstHeaderRow.querySelector('th.actions')) {
+      const th = document.createElement('th');
+      th.className = 'actions';
+      th.rowSpan = thead.rows.length > 1 ? 2 : 1;
+      th.textContent = ''; // minimalist
+      firstHeaderRow.appendChild(th);
+    }
+
+
+    function makeEditableAndRemovable(row) {
+      if (!row) return;
+
+      // (a) Bus Name editable (first cell)
+      const nameTd = row.querySelector('td:first-child');
+      if (nameTd && !nameTd.isContentEditable) {
+        nameTd.contentEditable = 'true';
+        nameTd.spellcheck = false;
+        nameTd.classList.add('bus-name-cell');
+        if (!row.dataset.busId) row.dataset.busId = (nameTd.textContent || '').trim();
+
+        nameTd.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); nameTd.blur(); }
+          if (e.key === 'Escape') { nameTd.textContent = row.dataset.busId; nameTd.blur(); }
+        });
+
+        nameTd.addEventListener('blur', () => {
+          const oldId = (row.dataset.busId || '').trim();
+          const newId = (nameTd.textContent || '').trim();
+          if (!newId || newId === oldId) { nameTd.textContent = oldId; return; }
+
+          // Uniqueness across other rows
+          const conflict = Array.from(tbody.querySelectorAll('tr')).some(r => {
+            if (r === row) return false;
+            const txt = (r.dataset.busId || r.firstElementChild?.textContent || '').trim();
+            return txt === newId;
+          });
+          // Also check scheduleData if it exists globally
+          const sd = window.scheduleData;
+          const sdConflict = !!(sd && sd[newId] && newId !== oldId);
+
+          if (conflict || sdConflict) {
+            alert('That bus name is already in use.');
+            nameTd.textContent = oldId;
+            return;
+          }
+
+          // Move scheduleData if present; otherwise just update dataset
+          if (sd && Object.prototype.hasOwnProperty.call(sd, oldId)) {
+            sd[newId] = sd[oldId];
+            delete sd[oldId];
+          }
+          row.dataset.busId = newId;
+        });
+      }
+
+      // (b) Actions cell with Remove button at far right
+     
+    }
+
+    // Enhance all existing rows right now
+    Array.from(tbody.querySelectorAll('tr')).forEach(makeEditableAndRemovable);
+
+    // Wrap future addBusRow so newly-added rows get enhanced automatically
+    if (typeof window.addBusRow === 'function' && !window.addBusRow.__enhancedActions) {
+      const orig = window.addBusRow;
+      window.addBusRow = function (...args) {
+        const res = orig.apply(this, args);
+        const row = res instanceof HTMLElement ? res : tbody.querySelector('tr:last-child');
+        makeEditableAndRemovable(row);
+
+        // ensure Actions header exists (in case header rebuilt elsewhere)
+        const firstHeaderRow = thead.querySelector('tr.hour-row') || thead.rows[0];
+        if (firstHeaderRow && !firstHeaderRow.querySelector('th.actions')) {
+          const th = document.createElement('th');
+          th.className = 'actions';
+          th.rowSpan = thead.rows.length > 1 ? 2 : 1;
+          th.textContent = '';
+          firstHeaderRow.appendChild(th);
+        }
+        window.sizeTimeColumns?.();
+        return res;
+      };
+      window.addBusRow.__enhancedActions = true;
+    }
+
+    // In case rows get injected by other code paths, watch the tbody
+    const mo = new MutationObserver(muts => {
+      muts.forEach(m => m.addedNodes.forEach(n => {
+        if (n.nodeType === 1 && n.matches?.('tr')) makeEditableAndRemovable(n);
+      }));
+    });
+    mo.observe(tbody, { childList: true });
+  });
+})();
+</script>
+
+
+<footer class="site-footer" role="contentinfo">
+  <div class="site-footer__inner">
+    <div class="site-footer__brand">
+      <img
+        src="{{ url_for('static', filename='img/nu-logo-narrow.png') }}"
+        alt="Nunes-Ueno Consulting"
+        loading="lazy"
+        height="28"
+      />
+    </div>
+    <small class="site-footer__legal">© 2025 Nunes-Ueno Consulting.</small>
+  </div>
+</footer>
+
 
 </body>
 </html>
