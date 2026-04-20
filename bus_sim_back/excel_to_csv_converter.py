@@ -69,11 +69,9 @@ def batch_excel_to_csv(excel_folder_path, csv_folder_path):
 # Use raw strings (r"...") or double backslashes (\\) for Windows paths.
 
 # Path to the folder where your Excel files are located
-EXCEL_FILES_DIRECTORY = r"C:\EV_Bus_Sim\bus_sim_data\excel_360_files" 
-
-# Path to the folder where you want to save the converted CSV files
-# This can be the same folder or a new one (e.g., a "csv_output" subfolder)
-CSV_OUTPUT_DIRECTORY = r"C:\EV_Bus_Sim\bus_sim_data\csv_converted" 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILES_DIRECTORY = os.path.join(SCRIPT_DIR, "..", "bus_sim_data", "excel_360_files")
+CSV_OUTPUT_DIRECTORY = os.path.join(SCRIPT_DIR, "..", "bus_sim_data", "csv_converted")
 
 # --- Run the conversion ---
 if __name__ == "__main__":

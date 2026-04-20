@@ -11,3 +11,4 @@ Desktop.ini
 
 # VS Code settings (optional)
 .vscode/
+*.backup

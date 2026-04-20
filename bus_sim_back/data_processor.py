@@ -201,7 +201,7 @@ def load_data_to_sqlite(db_path, ops_df, charge_df):
         print(f"Error loading data to SQLite: {e}")
 
 # --- Configuration ---
-CSV_FILES_DIRECTORY = r"C:\EV_Bus_Sim\bus_sim_data\csv_converted"  # Relative path to your CSVs
+CSV_FILES_DIRECTORY = os.path.join("..", "bus_sim_data", "csv_converted")
 DATABASE_PATH = r"fleet_history.db"  # Will be created in the same directory as the script
 
 # Keywords to identify file types (adjust if your filenames differ)
