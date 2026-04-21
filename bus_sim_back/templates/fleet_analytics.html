@@ -56,57 +56,100 @@
         box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.35);
     }
 
-    .temp-filter-sticky {
+    .temp-filter-float {
+        position: fixed;
+        z-index: 40;
+        right: max(16px, env(safe-area-inset-right, 0px));
+        bottom: max(16px, env(safe-area-inset-bottom, 0px));
         display: none;
-        position: sticky;
-        top: 0;
-        z-index: 8;
-        max-width: 100%;
-        box-sizing: border-box;
-        background: var(--color-surface-1);
-        border-bottom: 1px solid var(--color-border);
-        padding: 10px 0;
-        margin-bottom: 16px;
-        opacity: 0;
-        transition: opacity 0.18s ease;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        max-width: min(320px, calc(100vw - 32px));
+        pointer-events: none;
     }
-    .temp-filter-sticky.is-pinned {
-        display: block;
-        opacity: 1;
-    }
-    .temp-filter-sticky-inner {
+    .temp-filter-float.is-available {
         display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px 16px;
-        max-width: 100%;
-        min-width: 0;
     }
-    .temp-filter-sticky-label {
-        font-size: 0.85em;
+    .temp-filter-float.is-available .temp-filter-chip-btn,
+    .temp-filter-float.is-available .temp-filter-chip-panel {
+        pointer-events: auto;
+    }
+    .temp-filter-chip-panel {
+        width: min(300px, calc(100vw - 32px));
+        box-sizing: border-box;
+        padding: 14px 16px;
+        background: var(--color-surface-1);
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius-lg);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(6px);
+        transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    }
+    .temp-filter-chip-panel.is-open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .temp-filter-chip-panel-label {
+        font-size: 0.75em;
         font-weight: 600;
         color: var(--color-text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        flex-shrink: 0;
+        margin-bottom: 10px;
     }
-    .temp-filter-sticky-track-wrap {
-        flex: 1 1 120px;
+    .temp-filter-chip-panel-track {
         min-width: 0;
-        max-width: 420px;
+        margin-bottom: 8px;
     }
-    .temp-filter-sticky-readout {
+    .temp-filter-chip-panel-readout {
         font-size: 0.85em;
         color: var(--color-text-secondary);
-        flex-shrink: 0;
-        white-space: nowrap;
     }
-    .temp-filter-sticky-readout strong {
+    .temp-filter-chip-panel-readout strong {
         color: var(--color-text-primary);
         font-weight: 600;
     }
+    .temp-filter-chip-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        padding: 8px 14px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius-pill);
+        background: var(--color-surface-1);
+        color: var(--color-text-secondary);
+        font: inherit;
+        font-size: 0.85em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .temp-filter-chip-btn:hover {
+        background: var(--color-surface-2);
+        color: var(--color-text-primary);
+    }
+    .temp-filter-chip-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.35);
+    }
+    .temp-filter-chip-btn-label {
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-size: 0.72em;
+        font-weight: 600;
+    }
+    .temp-filter-chip-btn-range {
+        color: var(--color-text-primary);
+        font-weight: 600;
+        white-space: nowrap;
+    }
     @media (prefers-reduced-motion: reduce) {
-        .temp-filter-sticky {
+        .temp-filter-chip-panel {
             transition: none;
         }
     }
@@ -124,11 +167,6 @@
         color: var(--color-text-primary);
         font-weight: 600;
     }
-    .chart-temp-echo-link {
-        padding: 4px 12px;
-        font-size: 0.85em;
-    }
-
     .snapshot-section {
         margin-top: 2.5em;
         margin-bottom: 1.75em;
@@ -262,16 +300,6 @@
             </ul>
         </nav>
 
-        <div id="tempFilterSticky" class="temp-filter-sticky" aria-hidden="true">
-            <div class="temp-filter-sticky-inner">
-                <span class="temp-filter-sticky-label">Temperature (°F)</span>
-                <div class="temp-filter-sticky-track-wrap">
-                    <div id="tempSliderSticky"></div>
-                </div>
-                <span class="temp-filter-sticky-readout"><strong><span id="tempStickyValueLower">10</span>°F – <span id="tempStickyValueUpper">90</span>°F</strong></span>
-            </div>
-        </div>
-
         <div id="controlDeck" class="control-deck">
             <div class="control-row">
                 <div class="control-group">
@@ -320,7 +348,6 @@
         <p class="chart-temp-echo" id="chartTempEcho" aria-live="polite">
             <span>Temperature band applied to charts:</span>
             <span class="chart-temp-echo-values"><span id="echoTempLower">10</span>°F – <span id="echoTempUpper">90</span>°F</span>
-            <button type="button" class="btn chart-temp-echo-link" id="scrollToTempFilterBtn">Edit at top</button>
         </p>
 
         <div class="chart-header">
@@ -339,6 +366,20 @@
             </div>
         </div>
         <div id="noDataNotificationContainer" class="hidden"></div>
+    </div>
+
+    <div id="tempFilterFloat" class="temp-filter-float" hidden aria-hidden="true">
+        <div id="tempFilterChipPanel" class="temp-filter-chip-panel" role="dialog" aria-label="Adjust temperature filter">
+            <div class="temp-filter-chip-panel-label">Temperature (°F)</div>
+            <div class="temp-filter-chip-panel-track">
+                <div id="tempSliderSticky"></div>
+            </div>
+            <div class="temp-filter-chip-panel-readout"><strong><span id="tempStickyValueLower">10</span>°F – <span id="tempStickyValueUpper">90</span>°F</strong></div>
+        </div>
+        <button type="button" id="tempFilterChipBtn" class="temp-filter-chip-btn" aria-expanded="false" aria-controls="tempFilterChipPanel">
+            <span class="temp-filter-chip-btn-label">Temp</span>
+            <span class="temp-filter-chip-btn-range"><span id="tempChipRngLo">10</span>–<span id="tempChipRngHi">90</span>°F</span>
+        </button>
     </div>
 
     <!-- JS Libraries -->
@@ -473,6 +514,68 @@
                     }
                 }
                 chart.update('none');
+                syncBarChartToTimeSeriesLineHover(chart, hoveredDatasetIndex);
+            }
+
+            function barChartDefaultBackgroundColors() {
+                if (!busComparisonBarChart || !busComparisonBarChart.data.labels) return [];
+                const sel = selectedBuses.map(String);
+                return busComparisonBarChart.data.labels.map(id =>
+                    sel.includes(String(id)) ? 'var(--color-primary)' : '#5F6368');
+            }
+
+            function syncBarChartToTimeSeriesLineHover(tsChart, hoveredDatasetIndex) {
+                if (!busComparisonBarChart || currentView !== 'timeseries') return;
+                const labels = busComparisonBarChart.data.labels;
+                if (!labels || !labels.length) return;
+
+                const ds0 = busComparisonBarChart.data.datasets[0];
+
+                if (hoveredDatasetIndex == null || hoveredDatasetIndex === 0) {
+                    ds0.backgroundColor = barChartDefaultBackgroundColors();
+                    ds0.borderWidth = 0;
+                    ds0.borderColor = undefined;
+                    busComparisonBarChart.update('none');
+                    return;
+                }
+
+                const ds = tsChart.data.datasets[hoveredDatasetIndex];
+                const bid = ds && ds._busId;
+                if (bid == null) return;
+
+                const defaults = barChartDefaultBackgroundColors();
+                const hoverFill = cssVar('--color-primary') || '#8ab4f8';
+                const colors = labels.map((id, i) => (String(id) === String(bid) ? hoverFill : defaults[i]));
+
+                const uniformDefaults = defaults.length > 0 && defaults.every(c => c === defaults[0]);
+                if (uniformDefaults) {
+                    ds0.borderWidth = labels.map((id, i) => (String(id) === String(bid) ? 2 : 0));
+                    ds0.borderColor = labels.map((id, i) =>
+                        (String(id) === String(bid) ? (cssVar('--color-text-primary') || '#e8eaed') : 'transparent'));
+                } else {
+                    ds0.borderWidth = 0;
+                    ds0.borderColor = undefined;
+                }
+
+                ds0.backgroundColor = colors;
+                busComparisonBarChart.update('none');
+            }
+
+            function formatTimeSeriesTooltipDate(rawX) {
+                if (rawX == null) return '';
+                if (typeof rawX === 'number') {
+                    const d = new Date(rawX);
+                    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+                if (rawX instanceof Date) {
+                    return Number.isNaN(rawX.getTime()) ? '' : rawX.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+                const s = String(rawX);
+                if (/^\d{13}$/.test(s)) {
+                    const d = new Date(Number(s));
+                    return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+                return s;
             }
 
             async function refreshTimeSeriesChart() {
@@ -542,8 +645,7 @@
                                 callbacks: {
                                     title(items) {
                                         if (!items.length) return '';
-                                        const raw = items[0].parsed.x;
-                                        return raw != null ? String(raw) : '';
+                                        return formatTimeSeriesTooltipDate(items[0].parsed.x);
                                     },
                                     label(ctx) {
                                         const v = ctx.parsed.y;
@@ -687,7 +789,8 @@
                 const sortedBuses = Object.entries(allBusData).sort((a, b) => a[1].avg_power_kw - b[1].avg_power_kw);
                 const labels = sortedBuses.map(entry => entry[0]);
                 const dataValues = sortedBuses.map(entry => entry[1].avg_power_kw);
-                const backgroundColors = labels.map(id => selectedBuses.includes(id) ? 'var(--color-primary)' : '#5F6368');
+                const sel = selectedBuses.map(String);
+                const backgroundColors = labels.map(id => sel.includes(String(id)) ? 'var(--color-primary)' : '#5F6368');
 
                 const chartContainer = document.getElementById('mainBarChartContainer');
                 chartContainer.style.height = `${Math.max(400, labels.length * 25)}px`;
@@ -695,7 +798,7 @@
                 if (!busComparisonBarChart) {
                     busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
                         type: 'bar',
-                        data: { labels: labels, datasets: [{ label: 'Avg. Energy Use (kW)', data: dataValues, backgroundColor: backgroundColors }] },
+                        data: { labels: labels, datasets: [{ label: 'Avg. Energy Use (kW)', data: dataValues, backgroundColor: backgroundColors, borderWidth: 0 }] },
                         options: {
                             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { display: false }, datalabels: { display: false } },
@@ -726,6 +829,8 @@
                     busComparisonBarChart.data.labels = labels;
                     busComparisonBarChart.data.datasets[0].data = dataValues;
                     busComparisonBarChart.data.datasets[0].backgroundColor = backgroundColors;
+                    busComparisonBarChart.data.datasets[0].borderWidth = 0;
+                    busComparisonBarChart.data.datasets[0].borderColor = undefined;
                     busComparisonBarChart.update();
                 }
             }
@@ -944,6 +1049,10 @@
                 const sHi = document.getElementById('tempStickyValueUpper');
                 if (sLo) sLo.textContent = String(lo);
                 if (sHi) sHi.textContent = String(hi);
+                const chipLo = document.getElementById('tempChipRngLo');
+                const chipHi = document.getElementById('tempChipRngHi');
+                if (chipLo) chipLo.textContent = String(lo);
+                if (chipHi) chipHi.textContent = String(hi);
             }
 
             function syncOtherSlider(sourceEl, rawValues) {
@@ -976,14 +1085,6 @@
                 el.noUiSlider.on('change', onTempRangeChange);
             });
 
-            const scrollTempBtn = document.getElementById('scrollToTempFilterBtn');
-            if (scrollTempBtn) {
-                scrollTempBtn.addEventListener('click', () => {
-                    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                    document.getElementById('controlDeck').scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
-                });
-            }
-
             document.querySelectorAll('.view-toggle-option').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const view = btn.getAttribute('data-view');
@@ -993,6 +1094,12 @@
                         b.classList.toggle('active', b.getAttribute('data-view') === currentView);
                     });
                     updateDetailView();
+                    if (busComparisonBarChart) {
+                        busComparisonBarChart.data.datasets[0].backgroundColor = barChartDefaultBackgroundColors();
+                        busComparisonBarChart.data.datasets[0].borderWidth = 0;
+                        busComparisonBarChart.data.datasets[0].borderColor = undefined;
+                        busComparisonBarChart.update('none');
+                    }
                 });
             });
             
@@ -1002,6 +1109,8 @@
                 const labs = busComparisonBarChart.data.labels;
                 selectedBuses = [...labs];
                 busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => 'var(--color-primary)');
+                busComparisonBarChart.data.datasets[0].borderWidth = 0;
+                busComparisonBarChart.data.datasets[0].borderColor = undefined;
                 busComparisonBarChart.update();
                 updateDetailView();
             });
@@ -1012,30 +1121,76 @@
                 selectedBuses = []; 
                 const labs = busComparisonBarChart.data.labels;
                 busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => '#5F6368');
+                busComparisonBarChart.data.datasets[0].borderWidth = 0;
+                busComparisonBarChart.data.datasets[0].borderColor = undefined;
                 busComparisonBarChart.update();
                 updateDetailView();
             });
         }
 
-            function initTempStickyObserver() {
+            function initTempFloatObserver() {
                 const deck = document.getElementById('controlDeck');
-                const strip = document.getElementById('tempFilterSticky');
-                if (!deck || !strip || typeof IntersectionObserver === 'undefined') return;
+                const floatRoot = document.getElementById('tempFilterFloat');
+                const chipBtn = document.getElementById('tempFilterChipBtn');
+                const chipPanel = document.getElementById('tempFilterChipPanel');
+                if (!deck || !floatRoot || typeof IntersectionObserver === 'undefined') return;
+
+                function closeChipPanel() {
+                    if (!chipPanel || !chipBtn) return;
+                    chipPanel.classList.remove('is-open');
+                    chipBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                function setFloatAvailable(available) {
+                    if (available) {
+                        floatRoot.removeAttribute('hidden');
+                        floatRoot.classList.add('is-available');
+                        floatRoot.setAttribute('aria-hidden', 'false');
+                    } else {
+                        closeChipPanel();
+                        floatRoot.setAttribute('hidden', '');
+                        floatRoot.classList.remove('is-available');
+                        floatRoot.setAttribute('aria-hidden', 'true');
+                    }
+                }
+
                 const io = new IntersectionObserver((entries) => {
                     const visible = entries[0].isIntersecting;
-                    const pinned = !visible;
-                    strip.classList.toggle('is-pinned', pinned);
-                    strip.setAttribute('aria-hidden', visible ? 'true' : 'false');
-                    if (pinned) {
+                    setFloatAvailable(!visible);
+                    if (!visible) {
                         requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
                     }
                 }, { threshold: 0, rootMargin: '-40px 0px 0px 0px' });
                 io.observe(deck);
+
+                if (chipBtn && chipPanel) {
+                    chipBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const open = !chipPanel.classList.contains('is-open');
+                        chipPanel.classList.toggle('is-open', open);
+                        chipBtn.setAttribute('aria-expanded', String(open));
+                        if (open) {
+                            requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+                        }
+                    });
+                }
+
+                document.addEventListener('click', (e) => {
+                    if (!floatRoot.classList.contains('is-available')) return;
+                    if (floatRoot.contains(e.target)) return;
+                    closeChipPanel();
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Escape') return;
+                    if (!floatRoot.classList.contains('is-available')) return;
+                    closeChipPanel();
+                });
             }
 
             Chart.register(ChartDataLabels);
             initializeControls();
-            initTempStickyObserver();
+            initTempFloatObserver();
             initSnapshotSection();
             fetchAndUpdate();
         });
