@@ -13,7 +13,71 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <style>
-    .control-deck{background-color:var(--color-surface-1);padding:20px;border-radius:var(--border-radius-lg);margin-bottom:30px;border:1px solid var(--color-border)}.control-row{display:flex;align-items:center;gap:20px}.control-group{flex-grow:1}.noUi-target{background:var(--color-surface-2);border-radius:var(--border-radius-pill);border:none;box-shadow:none;height:8px}.noUi-connect{background:var(--color-primary)}.noUi-handle{border-radius:50%;background:#fff;box-shadow:none;cursor:pointer;border:none;width:12px;height:12px;top:-2px;right:-6px}.noUi-handle:active,.noUi-handle:focus{outline:none;box-shadow:0 0 0 2px rgba(138,180,248,.4)}.noUi-handle::after,.noUi-handle::before{display:none}.select2-container--default .select2-selection--multiple{background-color:var(--color-surface-1)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-sm)!important;min-height:42px!important;padding:4px!important}.select2-container--default.select2-container--focus .select2-selection--multiple{border-color:var(--color-primary)!important;box-shadow:0 0 0 2px rgba(138,180,248,.4)!important}.select2-container--default .select2-selection--multiple .select2-selection__choice{background-color:var(--color-primary)!important;border:none!important;border-radius:var(--border-radius-pill)!important;color:#000!important;padding:5px 10px!important;font-weight:500}.select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#000!important;margin-right:5px!important;font-size:1.2em}.select2-dropdown{background-color:var(--color-surface-2)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-md)!important}.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{background-color:var(--color-primary)!important;color:#fff!important}.chart-box,.kpi-card,.snapshot-table{background-color:var(--color-surface-1);padding:25px;border-radius:var(--border-radius-lg);border:1px solid var(--color-border);margin-bottom:20px}.snapshot-table{width:100%;border-collapse:separate;border-spacing:0}.snapshot-table td,.snapshot-table th{padding:16px;text-align:center;border-bottom:1px solid var(--color-border)}.snapshot-table th{background-color:transparent;color:var(--color-text-secondary);font-size:.9em;text-transform:uppercase;font-weight:600;letter-spacing:.5px;border-bottom-width:2px}.snapshot-table td{font-size:1em}.snapshot-table tr:last-child td{border-bottom:none}.snapshot-table td:first-child{text-align:left;font-weight:500;color:var(--color-text-primary)}.snapshot-value{font-size:1.8em;font-weight:700;display:block;margin-bottom:4px}.snapshot-sub-text{font-size:.8em;color:var(--color-text-secondary)}#cardWrapper{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:20px;padding:10px 0}.comparison-column{flex-grow:0;flex-shrink:0;flex-basis:350px;display:flex;flex-direction:column;gap:20px}.kpi-card h3{margin-bottom:15px}.regen-bar-container{position:relative;height:30px;background-color:var(--color-surface-2);border-radius:var(--border-radius-pill);overflow:hidden}.regen-bar-fill{position:absolute;left:0;top:0;height:100%;background-color:var(--color-green);transition:width .5s ease-in-out}.regen-bar-text{position:absolute;width:100%;left:0;top:50%;transform:translateY(-50%);color:#fff;font-weight:500;font-size:.9em;text-shadow:1px 1px 2px rgba(0,0,0,.5);padding-left:15px}.chart-canvas-wrapper{position:relative;flex-grow:1;min-height:0}.view-toggle{display:flex;width:fit-content;background-color:var(--color-surface-1);border-radius:var(--border-radius-pill);padding:8px;border:1px solid var(--color-border);margin-bottom:20px}.view-toggle-option{padding:8px 20px;border-radius:var(--border-radius-pill);cursor:pointer;border:none;background:transparent;font:inherit;color:var(--color-text-secondary);transition:background-color .2s ease}.view-toggle-option.active{background-color:var(--color-primary);color:#000}.view-toggle-option:hover:not(.active){color:var(--color-text-primary)}.chart-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.chart-header h2{margin:0;border:none}.chart-actions{display:flex;gap:10px}.btn{padding:8px 16px;border:1px solid var(--color-border);border-radius:var(--border-radius-pill);background-color:var(--color-surface-2);color:var(--color-text-secondary);font-weight:500;cursor:pointer;transition:background-color .2s ease,color .2s ease}.btn:hover{background-color:var(--color-surface-1);color:var(--color-text-primary)}.no-data-list{font-size:.9em;color:var(--color-text-secondary);background-color:var(--color-surface-1);border:1px solid var(--color-border);border-radius:var(--border-radius-md);padding:15px 20px;margin-top:-10px;list-style-position:inside}
+    .control-deck{background-color:var(--color-surface-1);padding:20px;border-radius:var(--border-radius-lg);margin-bottom:30px;border:1px solid var(--color-border)}.control-row{display:flex;align-items:center;gap:20px}.control-group{flex-grow:1}.select2-container--default .select2-selection--multiple{background-color:var(--color-surface-1)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-sm)!important;min-height:42px!important;padding:4px!important}.select2-container--default.select2-container--focus .select2-selection--multiple{border-color:var(--color-primary)!important;box-shadow:0 0 0 2px rgba(138,180,248,.4)!important}.select2-container--default .select2-selection--multiple .select2-selection__choice{background-color:var(--color-primary)!important;border:none!important;border-radius:var(--border-radius-pill)!important;color:#000!important;padding:5px 10px!important;font-weight:500}.select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#000!important;margin-right:5px!important;font-size:1.2em}.select2-dropdown{background-color:var(--color-surface-2)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-md)!important}.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{background-color:var(--color-primary)!important;color:#fff!important}.chart-box,.kpi-card,.snapshot-table{background-color:var(--color-surface-1);padding:25px;border-radius:var(--border-radius-lg);border:1px solid var(--color-border);margin-bottom:20px}.snapshot-table{width:100%;border-collapse:separate;border-spacing:0}.snapshot-table td,.snapshot-table th{padding:16px;text-align:center;border-bottom:1px solid var(--color-border)}.snapshot-table th{background-color:transparent;color:var(--color-text-secondary);font-size:.9em;text-transform:uppercase;font-weight:600;letter-spacing:.5px;border-bottom-width:2px}.snapshot-table td{font-size:1em}.snapshot-table tr:last-child td{border-bottom:none}.snapshot-table td:first-child{text-align:left;font-weight:500;color:var(--color-text-primary)}.snapshot-value{font-size:1.8em;font-weight:700;display:block;margin-bottom:4px}.snapshot-sub-text{font-size:.8em;color:var(--color-text-secondary)}#cardWrapper{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:20px;padding:10px 0}.comparison-column{flex-grow:0;flex-shrink:0;flex-basis:350px;display:flex;flex-direction:column;gap:20px}.kpi-card h3{margin-bottom:15px}.regen-bar-container{position:relative;height:30px;background-color:var(--color-surface-2);border-radius:var(--border-radius-pill);overflow:hidden}.regen-bar-fill{position:absolute;left:0;top:0;height:100%;background-color:var(--color-green);transition:width .5s ease-in-out}.regen-bar-text{position:absolute;width:100%;left:0;top:50%;transform:translateY(-50%);color:#fff;font-weight:500;font-size:.9em;text-shadow:1px 1px 2px rgba(0,0,0,.5);padding-left:15px}.chart-canvas-wrapper{position:relative;flex-grow:1;min-height:0}.view-toggle{display:flex;width:fit-content;background-color:var(--color-surface-1);border-radius:var(--border-radius-pill);padding:8px;border:1px solid var(--color-border);margin-bottom:20px}.view-toggle-option{padding:8px 20px;border-radius:var(--border-radius-pill);cursor:pointer;border:none;background:transparent;font:inherit;color:var(--color-text-secondary);transition:background-color .2s ease}.view-toggle-option.active{background-color:var(--color-primary);color:#000}.view-toggle-option:hover:not(.active){color:var(--color-text-primary)}.chart-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.chart-header h2{margin:0;border:none}.chart-actions{display:flex;gap:10px}.btn{padding:8px 16px;border:1px solid var(--color-border);border-radius:var(--border-radius-pill);background-color:var(--color-surface-2);color:var(--color-text-secondary);font-weight:500;cursor:pointer;transition:background-color .2s ease,color .2s ease}.btn:hover{background-color:var(--color-surface-1);color:var(--color-text-primary)}.no-data-list{font-size:.9em;color:var(--color-text-secondary);background-color:var(--color-surface-1);border:1px solid var(--color-border);border-radius:var(--border-radius-md);padding:15px 20px;margin-top:-10px;list-style-position:inside}
+    /* Temperature slider: overrides nouislider.min.css (.noUi-horizontal .noUi-handle is 34×28 by default) */
+    #tempSlider.noUi-target.noUi-horizontal {
+        height: 4px;
+        background: var(--color-surface-2);
+        border-radius: var(--border-radius-pill);
+        border: none;
+        box-shadow: none;
+    }
+    #tempSlider .noUi-connect {
+        background: var(--color-primary);
+    }
+    #tempSlider.noUi-horizontal .noUi-handle {
+        width: 10px;
+        height: 10px;
+        right: -5px;
+        top: -3px;
+        border-radius: 50%;
+        background: var(--color-surface-2);
+        border: 1px solid var(--color-text-secondary);
+        box-shadow: none;
+    }
+    #tempSlider .noUi-handle::before,
+    #tempSlider .noUi-handle::after {
+        display: none;
+    }
+    #tempSlider .noUi-handle:hover {
+        border-color: var(--color-text-primary);
+    }
+    #tempSlider .noUi-handle:active,
+    #tempSlider .noUi-handle:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.35);
+    }
+
+    .comparison-column .chart-canvas-wrapper {
+        height: 200px;
+        max-width: 260px;
+        margin-inline: auto;
+    }
+    @media (max-width: 900px) {
+        #cardWrapper { gap: 10px; }
+        .comparison-column {
+            flex: 1 1 calc((100% - 20px) / 3);
+            min-width: 0;
+        }
+        .comparison-column .chart-box {
+            padding: 12px;
+        }
+        .comparison-column .chart-box h3 {
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+        }
+        .comparison-column .chart-canvas-wrapper {
+            height: min(92px, 26vw);
+            max-width: none;
+        }
+        .comparison-column .kpi-card {
+            padding: 12px;
+        }
+        .comparison-column .kpi-card h3 {
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+        }
+    }
 </style>
 </head>
 <body>
@@ -101,6 +165,22 @@
             let allBusData = {};
             let allBusIDs = [];
             let selectedBuses = [];
+            const SUBSYSTEM_COLORS = {
+                'Traction': '#36A2EB',
+                'Air Comp.': '#FF6384',
+                'HVAC': '#FFCE56',
+                'Heater': '#FF9F40',
+                'LV Acc.': '#4BC0C0'
+            };
+            const SUBSYSTEM_PIE_ORDER = ['Traction', 'Air Comp.', 'HVAC', 'Heater', 'LV Acc.'];
+
+            function subsystemBreakdownEntries(breakdownKw) {
+                const d = breakdownKw || {};
+                return SUBSYSTEM_PIE_ORDER
+                    .map(key => [key, d[key]])
+                    .filter(([, val]) => val != null && !Number.isNaN(Number(val)) && Number(val) > 0.01);
+            }
+
             let currentView = 'subsystem';
             let timeSeriesChart = null;
             const donutCharts = {};
@@ -129,14 +209,69 @@
                     .sort((a, b) => new Date(a.x) - new Date(b.x));
             }
 
+            function insertGapNulls(points, maxDaysGap = 14) {
+                if (!points || points.length < 2) {
+                    if (!points || !points.length) return points;
+                    return [...points].sort((a, b) => new Date(a.x) - new Date(b.x));
+                }
+                const sorted = [...points].sort((a, b) => new Date(a.x) - new Date(b.x));
+                const result = [];
+                for (let i = 0; i < sorted.length; i++) {
+                    result.push(sorted[i]);
+                    if (i < sorted.length - 1) {
+                        const current = new Date(sorted[i].x);
+                        const next = new Date(sorted[i + 1].x);
+                        const dayDiff = (next - current) / (1000 * 60 * 60 * 24);
+                        if (dayDiff > maxDaysGap) {
+                            const midDate = new Date(current.getTime() + (next - current) / 2);
+                            result.push({ x: midDate.toISOString().split('T')[0], y: null });
+                        }
+                    }
+                }
+                return result;
+            }
+
+            function fleetYAtParsedX(fleetData, parsedX) {
+                if (parsedX == null || !fleetData || !fleetData.length) return null;
+                const t = typeof parsedX === 'number' ? parsedX : new Date(parsedX).getTime();
+                for (const p of fleetData) {
+                    if (p.y == null || Number.isNaN(p.y)) continue;
+                    const pt = new Date(p.x).getTime();
+                    if (pt === t) return p.y;
+                }
+                let best = null;
+                let bestD = Infinity;
+                for (const p of fleetData) {
+                    if (p.y == null || Number.isNaN(p.y)) continue;
+                    const pt = new Date(p.x).getTime();
+                    const d = Math.abs(pt - t);
+                    if (d < bestD) { bestD = d; best = p.y; }
+                }
+                return best;
+            }
+
+            function timeSeriesBusLineStyle(count) {
+                if (count <= 3) return { opacity: 0.8, borderWidth: 2.5 };
+                if (count <= 8) return { opacity: 0.5, borderWidth: 2 };
+                return { opacity: 0.3, borderWidth: 1.5 };
+            }
+
             function setBusLineHoverOpacity(chart, hoveredDatasetIndex) {
                 const datasets = chart.data.datasets;
                 if (datasets.length <= 1) return;
                 for (let i = 1; i < datasets.length; i++) {
-                    const alpha = hoveredDatasetIndex === null || hoveredDatasetIndex === 0
-                        ? 0.4
-                        : (i === hoveredDatasetIndex ? 1 : 0.2);
-                    datasets[i].borderColor = `rgba(138, 180, 248, ${alpha})`;
+                    const baseOp = datasets[i]._busBaseOpacity;
+                    const baseW = datasets[i]._busBaseBorderWidth;
+                    if (hoveredDatasetIndex === null || hoveredDatasetIndex === 0) {
+                        datasets[i].borderColor = `rgba(138, 180, 248, ${baseOp})`;
+                        datasets[i].borderWidth = baseW;
+                    } else if (i === hoveredDatasetIndex) {
+                        datasets[i].borderColor = 'rgba(138, 180, 248, 1)';
+                        datasets[i].borderWidth = 3;
+                    } else {
+                        datasets[i].borderColor = 'rgba(138, 180, 248, 0.15)';
+                        datasets[i].borderWidth = baseW;
+                    }
                 }
                 chart.update('none');
             }
@@ -160,21 +295,26 @@
                     const tsData = await response.json();
                     if (tsData.error) throw new Error(tsData.error);
 
-                    const fleetPoints = computeFleetAverageTimeSeries(tsData);
+                    const fleetPoints = insertGapNulls(computeFleetAverageTimeSeries(tsData));
                     const fleetColor = cssVar('--color-text-secondary');
                     const axisColor = cssVar('--color-text-primary');
                     const selectedStr = selectedBuses.map(String);
+                    const { opacity: busBaseOpacity, borderWidth: busBaseWidth } = timeSeriesBusLineStyle(selectedStr.length);
 
                     const busDatasets = selectedStr.map(busId => ({
                         label: `Bus ${busId}`,
-                        data: (tsData[busId] || []).map(r => ({ x: r.date, y: r.moving_avg_power_kw })),
-                        borderColor: 'rgba(138, 180, 248, 0.4)',
+                        _busId: busId,
+                        data: insertGapNulls((tsData[busId] || []).map(r => ({ x: r.date, y: r.moving_avg_power_kw }))),
+                        borderColor: `rgba(138, 180, 248, ${busBaseOpacity})`,
                         backgroundColor: 'transparent',
-                        borderWidth: 2,
+                        borderWidth: busBaseWidth,
                         pointRadius: 0,
                         tension: 0.2,
                         fill: false,
-                        spanGaps: true
+                        spanGaps: false,
+                        order: 0,
+                        _busBaseOpacity: busBaseOpacity,
+                        _busBaseBorderWidth: busBaseWidth
                     }));
 
                     const fleetDataset = {
@@ -186,17 +326,20 @@
                         pointRadius: 0,
                         tension: 0.2,
                         fill: false,
-                        spanGaps: true
+                        spanGaps: false,
+                        order: 1
                     };
 
                     const chartOptions = {
                         responsive: true,
                         maintainAspectRatio: false,
-                        interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+                        interaction: { mode: 'nearest', intersect: false, axis: 'xy' },
                         plugins: {
                             legend: { display: false },
                             datalabels: { display: false },
                             tooltip: {
+                                mode: 'nearest',
+                                intersect: false,
                                 callbacks: {
                                     title(items) {
                                         if (!items.length) return '';
@@ -207,6 +350,17 @@
                                         const v = ctx.parsed.y;
                                         const val = v != null && !Number.isNaN(v) ? Number(v).toFixed(2) : '—';
                                         return `${ctx.dataset.label}: ${val} kW/hour (7-day avg)`;
+                                    },
+                                    footer(items) {
+                                        if (!items.length) return '';
+                                        const chart = items[0].chart;
+                                        const dsIdx = items[0].datasetIndex;
+                                        if (dsIdx === 0) return '';
+                                        const fx = items[0].parsed.x;
+                                        const fleetPts = chart.data.datasets[0].data;
+                                        const fy = fleetYAtParsedX(fleetPts, fx);
+                                        if (fy == null || Number.isNaN(fy)) return '';
+                                        return `Fleet average: ${Number(fy).toFixed(2)} kW/hour (7-day avg)`;
                                     }
                                 }
                             }
@@ -233,6 +387,19 @@
                             }
                             const ds = elements[0].datasetIndex;
                             setBusLineHoverOpacity(ch, ds);
+                        },
+                        onClick(event, elements, chart) {
+                            const ch = chart || (event && event.chart);
+                            if (!ch) return;
+                            const pts = ch.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                            if (!pts.length) return;
+                            const dsIdx = pts[0].datasetIndex;
+                            if (dsIdx === 0) return;
+                            const ds = ch.data.datasets[dsIdx];
+                            const bid = ds && ds._busId;
+                            if (bid == null) return;
+                            selectedBuses = [bid];
+                            handleSelectionChange();
                         }
                     };
 
@@ -371,16 +538,15 @@
                 if (fill) fill.style.width = `${regenPercent}%`;
                 if (txt) txt.textContent = `${regenPercent}%`;
                 const d = metrics.breakdown_kw;
-                const keys = Object.keys(d).filter(key => d[key] > 0.01);
-                const palette = ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'];
+                const entries = subsystemBreakdownEntries(d);
                 let chart = donutCharts[busId];
                 if (!chart) {
                     donutCharts[busId] = createDonutChart(`donut-${busId}`, metrics.breakdown_kw);
                     return;
                 }
-                chart.data.labels = keys;
-                chart.data.datasets[0].data = keys.map(k => d[k]);
-                chart.data.datasets[0].backgroundColor = keys.map((_, i) => palette[i]);
+                chart.data.labels = entries.map(([key]) => key);
+                chart.data.datasets[0].data = entries.map(([, val]) => val);
+                chart.data.datasets[0].backgroundColor = chart.data.labels.map(label => SUBSYSTEM_COLORS[label] || '#999999');
                 chart.update();
             }
 
@@ -508,15 +674,18 @@
 
             function createDonutChart(canvasId, data) {
                 const ctx = document.getElementById(canvasId).getContext('2d');
-                const keys = Object.keys(data).filter(key => data[key] > 0.01);
-                const palette = ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'];
+                const entries = subsystemBreakdownEntries(data);
+                const labels = entries.map(([key]) => key);
+                const values = entries.map(([, val]) => val);
+                const colors = labels.map(label => SUBSYSTEM_COLORS[label] || '#999999');
                 const chartData = {
-                    labels: keys,
-                    datasets: [{ data: keys.map(k => data[k]), backgroundColor: keys.map((_, i) => palette[i]) }]
+                    labels: labels,
+                    datasets: [{ data: values, backgroundColor: colors }]
                 };
                 return new Chart(ctx, { type: 'doughnut', data: chartData,
                     options: { 
-                        responsive: true, maintainAspectRatio: false, cutout: '50%', 
+                        responsive: true, maintainAspectRatio: false, cutout: '50%',
+                        rotation: 180,
                         plugins: { 
                             legend: { display: false }, 
                             datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v, c) => `${(v / c.chart.getDatasetMeta(0).total * 100).toFixed(0)}%` } 
