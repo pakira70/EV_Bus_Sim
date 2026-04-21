@@ -10,6 +10,21 @@ This document defines the design language for this application. Cursor and all c
 
 **Central Command aesthetic.** Dark surfaces, high-contrast data, muted chrome. Data is the content; everything else recedes.
 
+## Data-Ink Ratio (Tuftian Principle)
+
+This application follows Edward Tufte's principle of maximizing the data-ink ratio: the proportion of visual elements devoted to displaying actual data versus decoration, chrome, and labels.
+
+Every visual element must justify its existence by answering: *does this help the user see or understand data?* If the answer is "it's a control" or "it's a border" or "it's a label," that element should be minimized — smaller, lighter, quieter — until it stops competing with the data itself.
+
+Concretely:
+- Controls (sliders, buttons, dropdowns) should be small and muted.
+- Borders should be subtle; prefer background-color layering over drawn lines.
+- Labels should be present but never dominant.
+- Axis lines, gridlines, and legends on charts should be removed when possible.
+- Whitespace is information; it separates without ornamenting.
+
+This principle resolves conflicts: when in doubt between "more visible" and "less visible," choose less visible.
+
 ## Typography
 
 - **Font family:** Inter (Google Fonts), weights 400, 500, 600, 700. Fallback stack defined in `--font-family-sans`.
