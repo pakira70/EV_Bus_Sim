@@ -13,7 +13,7 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <style>
-    .control-deck{background-color:var(--color-surface-1);padding:20px;border-radius:var(--border-radius-lg);margin-bottom:30px;border:1px solid var(--color-border)}.control-row{display:flex;align-items:center;gap:20px}.control-group{flex-grow:1}.noUi-target{background:var(--color-surface-2);border-radius:var(--border-radius-pill);border:none;box-shadow:none;height:8px}.noUi-connect{background:var(--color-primary)}.noUi-handle{border-radius:50%;background:#fff;box-shadow:none;cursor:pointer;border:none;width:12px;height:12px;top:-2px;right:-6px}.noUi-handle:active,.noUi-handle:focus{outline:none;box-shadow:0 0 0 2px rgba(138,180,248,.4)}.noUi-handle::after,.noUi-handle::before{display:none}.select2-container--default .select2-selection--multiple{background-color:var(--color-surface-1)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-sm)!important;min-height:42px!important;padding:4px!important}.select2-container--default.select2-container--focus .select2-selection--multiple{border-color:var(--color-primary)!important;box-shadow:0 0 0 2px rgba(138,180,248,.4)!important}.select2-container--default .select2-selection--multiple .select2-selection__choice{background-color:var(--color-primary)!important;border:none!important;border-radius:var(--border-radius-pill)!important;color:#000!important;padding:5px 10px!important;font-weight:500}.select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#000!important;margin-right:5px!important;font-size:1.2em}.select2-dropdown{background-color:var(--color-surface-2)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-md)!important}.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{background-color:var(--color-primary)!important;color:#fff!important}.chart-box,.kpi-card,.snapshot-table{background-color:var(--color-surface-1);padding:25px;border-radius:var(--border-radius-lg);border:1px solid var(--color-border);margin-bottom:20px}.snapshot-table{width:100%;border-collapse:separate;border-spacing:0}.snapshot-table td,.snapshot-table th{padding:16px;text-align:center;border-bottom:1px solid var(--color-border)}.snapshot-table th{background-color:transparent;color:var(--color-text-secondary);font-size:.9em;text-transform:uppercase;font-weight:600;letter-spacing:.5px;border-bottom-width:2px}.snapshot-table td{font-size:1em}.snapshot-table tr:last-child td{border-bottom:none}.snapshot-table td:first-child{text-align:left;font-weight:500;color:var(--color-text-primary)}.snapshot-value{font-size:1.8em;font-weight:700;display:block;margin-bottom:4px}.snapshot-sub-text{font-size:.8em;color:var(--color-text-secondary)}#cardWrapper{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:20px;padding:10px 0}.comparison-column{flex-grow:0;flex-shrink:0;flex-basis:350px;display:flex;flex-direction:column;gap:20px}.kpi-card h3{margin-bottom:15px}.regen-bar-container{position:relative;height:30px;background-color:var(--color-surface-2);border-radius:var(--border-radius-pill);overflow:hidden}.regen-bar-fill{position:absolute;left:0;top:0;height:100%;background-color:var(--color-green);transition:width .5s ease-in-out}.regen-bar-text{position:absolute;width:100%;left:0;top:50%;transform:translateY(-50%);color:#fff;font-weight:500;font-size:.9em;text-shadow:1px 1px 2px rgba(0,0,0,.5);padding-left:15px}.chart-canvas-wrapper{position:relative;flex-grow:1;min-height:0}.chart-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.chart-header h2{margin:0;border:none}.chart-actions{display:flex;gap:10px}.btn{padding:8px 16px;border:1px solid var(--color-border);border-radius:var(--border-radius-pill);background-color:var(--color-surface-2);color:var(--color-text-secondary);font-weight:500;cursor:pointer;transition:background-color .2s ease,color .2s ease}.btn:hover{background-color:var(--color-surface-1);color:var(--color-text-primary)}.no-data-list{font-size:.9em;color:var(--color-text-secondary);background-color:var(--color-surface-1);border:1px solid var(--color-border);border-radius:var(--border-radius-md);padding:15px 20px;margin-top:-10px;list-style-position:inside}
+    .control-deck{background-color:var(--color-surface-1);padding:20px;border-radius:var(--border-radius-lg);margin-bottom:30px;border:1px solid var(--color-border)}.control-row{display:flex;align-items:center;gap:20px}.control-group{flex-grow:1}.noUi-target{background:var(--color-surface-2);border-radius:var(--border-radius-pill);border:none;box-shadow:none;height:8px}.noUi-connect{background:var(--color-primary)}.noUi-handle{border-radius:50%;background:#fff;box-shadow:none;cursor:pointer;border:none;width:12px;height:12px;top:-2px;right:-6px}.noUi-handle:active,.noUi-handle:focus{outline:none;box-shadow:0 0 0 2px rgba(138,180,248,.4)}.noUi-handle::after,.noUi-handle::before{display:none}.select2-container--default .select2-selection--multiple{background-color:var(--color-surface-1)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-sm)!important;min-height:42px!important;padding:4px!important}.select2-container--default.select2-container--focus .select2-selection--multiple{border-color:var(--color-primary)!important;box-shadow:0 0 0 2px rgba(138,180,248,.4)!important}.select2-container--default .select2-selection--multiple .select2-selection__choice{background-color:var(--color-primary)!important;border:none!important;border-radius:var(--border-radius-pill)!important;color:#000!important;padding:5px 10px!important;font-weight:500}.select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#000!important;margin-right:5px!important;font-size:1.2em}.select2-dropdown{background-color:var(--color-surface-2)!important;border:1px solid var(--color-border)!important;border-radius:var(--border-radius-md)!important}.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{background-color:var(--color-primary)!important;color:#fff!important}.chart-box,.kpi-card,.snapshot-table{background-color:var(--color-surface-1);padding:25px;border-radius:var(--border-radius-lg);border:1px solid var(--color-border);margin-bottom:20px}.snapshot-table{width:100%;border-collapse:separate;border-spacing:0}.snapshot-table td,.snapshot-table th{padding:16px;text-align:center;border-bottom:1px solid var(--color-border)}.snapshot-table th{background-color:transparent;color:var(--color-text-secondary);font-size:.9em;text-transform:uppercase;font-weight:600;letter-spacing:.5px;border-bottom-width:2px}.snapshot-table td{font-size:1em}.snapshot-table tr:last-child td{border-bottom:none}.snapshot-table td:first-child{text-align:left;font-weight:500;color:var(--color-text-primary)}.snapshot-value{font-size:1.8em;font-weight:700;display:block;margin-bottom:4px}.snapshot-sub-text{font-size:.8em;color:var(--color-text-secondary)}#cardWrapper{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:20px;padding:10px 0}.comparison-column{flex-grow:0;flex-shrink:0;flex-basis:350px;display:flex;flex-direction:column;gap:20px}.kpi-card h3{margin-bottom:15px}.regen-bar-container{position:relative;height:30px;background-color:var(--color-surface-2);border-radius:var(--border-radius-pill);overflow:hidden}.regen-bar-fill{position:absolute;left:0;top:0;height:100%;background-color:var(--color-green);transition:width .5s ease-in-out}.regen-bar-text{position:absolute;width:100%;left:0;top:50%;transform:translateY(-50%);color:#fff;font-weight:500;font-size:.9em;text-shadow:1px 1px 2px rgba(0,0,0,.5);padding-left:15px}.chart-canvas-wrapper{position:relative;flex-grow:1;min-height:0}.view-toggle{display:flex;width:fit-content;background-color:var(--color-surface-1);border-radius:var(--border-radius-pill);padding:8px;border:1px solid var(--color-border);margin-bottom:20px}.view-toggle-option{padding:8px 20px;border-radius:var(--border-radius-pill);cursor:pointer;border:none;background:transparent;font:inherit;color:var(--color-text-secondary);transition:background-color .2s ease}.view-toggle-option.active{background-color:var(--color-primary);color:#000}.view-toggle-option:hover:not(.active){color:var(--color-text-primary)}.chart-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.chart-header h2{margin:0;border:none}.chart-actions{display:flex;gap:10px}.btn{padding:8px 16px;border:1px solid var(--color-border);border-radius:var(--border-radius-pill);background-color:var(--color-surface-2);color:var(--color-text-secondary);font-weight:500;cursor:pointer;transition:background-color .2s ease,color .2s ease}.btn:hover{background-color:var(--color-surface-1);color:var(--color-text-primary)}.no-data-list{font-size:.9em;color:var(--color-text-secondary);background-color:var(--color-surface-1);border:1px solid var(--color-border);border-radius:var(--border-radius-md);padding:15px 20px;margin-top:-10px;list-style-position:inside}
 </style>
 </head>
 <body>
@@ -57,6 +57,11 @@
             </tbody>
         </table>
 
+        <div class="view-toggle" role="tablist">
+            <button type="button" class="view-toggle-option active" data-view="subsystem" id="viewToggleSubsystem">Energy Use by Sub-System</button>
+            <button type="button" class="view-toggle-option" data-view="timeseries" id="viewToggleTimeseries">Energy Use Over Time</button>
+        </div>
+
         <div class="chart-header">
             <h2>Bus Comparison - Average Energy Use per Hour</h2>
             <div class="chart-actions">
@@ -67,16 +72,10 @@
         <div class="chart-box" id="mainBarChartContainer"><canvas id="busComparisonBarChart"></canvas></div>
 
         <div id="detailBreakdownContainer" class="hidden">
-            <h2>Detailed Breakdown</h2>
             <div id="cardWrapper"></div>
+            <div id="detailTimeseriesPlaceholder" class="hidden chart-box" style="color: var(--color-text-secondary);">Time series view coming in next update</div>
         </div>
         <div id="noDataNotificationContainer" class="hidden"></div>
-        
-        <h2 style="margin-top: 30px;">Energy Use Over Time (Feature Coming Soon)</h2>
-        
-        <div class="chart-box" style="height: 450px;">
-            <canvas id="multiBusTimeSeriesChart"></canvas>
-        </div>
     </div>
 
     <!-- JS Libraries -->
@@ -100,6 +99,7 @@
             let allBusData = {};
             let allBusIDs = [];
             let selectedBuses = [];
+            let currentView = 'subsystem';
             const donutCharts = {};
 
             const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
@@ -118,21 +118,46 @@
 
                     updateSnapshotTable(data.snapshot_kpis, allBusData, ESS_CAPACITY_KWH);
                     handleSelectionChange(); 
-
-                    const timeSeriesBusSelector = $('#timeSeriesBusSelector');
-                    if (allBusIDs.length > 0) {
-                        timeSeriesBusSelector.empty(); 
-                        allBusIDs.forEach(bus => {
-                            timeSeriesBusSelector.append(new Option(bus, bus, false, false));
-                        });
-                        timeSeriesBusSelector.trigger('change');
-                    }
                 } catch (error) { console.error("Failed to update dashboard:", error); }
             }
 
             function handleSelectionChange() {
                 updateBusComparisonBarChart();
-                updateDetailBreakdown();
+                updateDetailView();
+            }
+
+            function updateDetailView() {
+                const detailContainer = document.getElementById('detailBreakdownContainer');
+                const cardWrapper = document.getElementById('cardWrapper');
+                const placeholder = document.getElementById('detailTimeseriesPlaceholder');
+                const noDataContainer = document.getElementById('noDataNotificationContainer');
+
+                if (selectedBuses.length === 0) {
+                    detailContainer.classList.add('hidden');
+                    cardWrapper.classList.remove('hidden');
+                    cardWrapper.innerHTML = '';
+                    placeholder.classList.add('hidden');
+                    noDataContainer.innerHTML = '';
+                    noDataContainer.classList.add('hidden');
+                    Object.keys(donutCharts).forEach(busId => {
+                        donutCharts[busId].destroy();
+                        delete donutCharts[busId];
+                    });
+                    return;
+                }
+
+                detailContainer.classList.remove('hidden');
+
+                if (currentView === 'timeseries') {
+                    cardWrapper.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                    noDataContainer.innerHTML = '';
+                    noDataContainer.classList.add('hidden');
+                } else {
+                    cardWrapper.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    updateDetailBreakdown();
+                }
             }
 
             function updateBusComparisonBarChart() {
@@ -352,10 +377,19 @@
                 document.getElementById('tempValueUpper').textContent = `${Math.round(values[1])}°F`;
             });
             tempSliderEl.noUiSlider.on('change', fetchAndUpdate);
+
+            document.querySelectorAll('.view-toggle-option').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const view = btn.getAttribute('data-view');
+                    if (view === currentView) return;
+                    currentView = view;
+                    document.querySelectorAll('.view-toggle-option').forEach(b => {
+                        b.classList.toggle('active', b.getAttribute('data-view') === currentView);
+                    });
+                    updateDetailView();
+                });
+            });
             
-            $('#timeSeriesBusSelector').select2({ placeholder: 'Select buses to compare on the chart', allowClear: true });
-            
-            // NEW, SIMPLER LOGIC
             document.getElementById('selectAllBusesBtn').addEventListener('click', () => {
                 if (!busComparisonBarChart) return;
 
@@ -363,7 +397,7 @@
                 selectedBuses = [...labs];
                 busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => 'var(--color-primary)');
                 busComparisonBarChart.update();
-                updateDetailBreakdown();
+                updateDetailView();
             });
 
             document.getElementById('clearSelectionBtn').addEventListener('click', () => {
@@ -373,7 +407,7 @@
                 const labs = busComparisonBarChart.data.labels;
                 busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => '#5F6368');
                 busComparisonBarChart.update();
-                updateDetailBreakdown();
+                updateDetailView();
             });
         }
             Chart.register(ChartDataLabels);
