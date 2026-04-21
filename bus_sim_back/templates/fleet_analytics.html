@@ -73,7 +73,9 @@
 
         <div id="detailBreakdownContainer" class="hidden">
             <div id="cardWrapper"></div>
-            <div id="detailTimeseriesPlaceholder" class="hidden chart-box" style="color: var(--color-text-secondary);">Time series view coming in next update</div>
+            <div id="detailTimeseriesPlaceholder" class="hidden chart-box" style="height: 450px;">
+                <canvas id="timeSeriesChart"></canvas>
+            </div>
         </div>
         <div id="noDataNotificationContainer" class="hidden"></div>
     </div>
@@ -100,9 +102,155 @@
             let allBusIDs = [];
             let selectedBuses = [];
             let currentView = 'subsystem';
+            let timeSeriesChart = null;
             const donutCharts = {};
 
             const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
+
+            function cssVar(name) {
+                return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            }
+
+            function computeFleetAverageTimeSeries(tsDataByBus) {
+                const dateMap = new Map();
+                Object.keys(tsDataByBus).forEach(busId => {
+                    (tsDataByBus[busId] || []).forEach(row => {
+                        const d = row.date;
+                        const v = parseFloat(row.moving_avg_power_kw);
+                        if (Number.isNaN(v)) return;
+                        if (!dateMap.has(d)) dateMap.set(d, { sum: 0, count: 0 });
+                        const agg = dateMap.get(d);
+                        agg.sum += v;
+                        agg.count += 1;
+                    });
+                });
+                return [...dateMap.entries()]
+                    .map(([date, { sum, count }]) => ({ x: date, y: sum / count }))
+                    .sort((a, b) => new Date(a.x) - new Date(b.x));
+            }
+
+            function setBusLineHoverOpacity(chart, hoveredDatasetIndex) {
+                const datasets = chart.data.datasets;
+                if (datasets.length <= 1) return;
+                for (let i = 1; i < datasets.length; i++) {
+                    const alpha = hoveredDatasetIndex === null || hoveredDatasetIndex === 0
+                        ? 0.4
+                        : (i === hoveredDatasetIndex ? 1 : 0.2);
+                    datasets[i].borderColor = `rgba(138, 180, 248, ${alpha})`;
+                }
+                chart.update('none');
+            }
+
+            async function refreshTimeSeriesChart() {
+                if (currentView !== 'timeseries' || selectedBuses.length === 0) return;
+
+                const canvas = document.getElementById('timeSeriesChart');
+                if (!canvas || !allBusIDs.length) return;
+
+                const tempValues = tempSliderEl.noUiSlider.get(true);
+                const params = new URLSearchParams({
+                    low_temp: tempValues[0],
+                    high_temp: tempValues[1],
+                    timeseries_buses: allBusIDs.join(',')
+                });
+
+                try {
+                    const response = await fetch(`/api/fleet_analytics_data?${params}`);
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                    const tsData = await response.json();
+                    if (tsData.error) throw new Error(tsData.error);
+
+                    const fleetPoints = computeFleetAverageTimeSeries(tsData);
+                    const fleetColor = cssVar('--color-text-secondary');
+                    const axisColor = cssVar('--color-text-primary');
+                    const selectedStr = selectedBuses.map(String);
+
+                    const busDatasets = selectedStr.map(busId => ({
+                        label: `Bus ${busId}`,
+                        data: (tsData[busId] || []).map(r => ({ x: r.date, y: r.moving_avg_power_kw })),
+                        borderColor: 'rgba(138, 180, 248, 0.4)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        fill: false,
+                        spanGaps: true
+                    }));
+
+                    const fleetDataset = {
+                        label: 'Fleet average',
+                        data: fleetPoints,
+                        borderColor: fleetColor,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        fill: false,
+                        spanGaps: true
+                    };
+
+                    const chartOptions = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title(items) {
+                                        if (!items.length) return '';
+                                        const raw = items[0].parsed.x;
+                                        return raw != null ? String(raw) : '';
+                                    },
+                                    label(ctx) {
+                                        const v = ctx.parsed.y;
+                                        const val = v != null && !Number.isNaN(v) ? Number(v).toFixed(2) : '—';
+                                        return `${ctx.dataset.label}: ${val} kW/hour (7-day avg)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                grid: { display: false },
+                                ticks: { color: axisColor },
+                                title: { display: true, text: 'Date', color: axisColor }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: axisColor },
+                                title: { display: true, text: 'Energy use (kW/hour, 7-day avg)', color: axisColor }
+                            }
+                        },
+                        onHover(event, elements, chart) {
+                            const ch = chart || (event && event.chart);
+                            if (!ch) return;
+                            if (!elements.length) {
+                                setBusLineHoverOpacity(ch, null);
+                                return;
+                            }
+                            const ds = elements[0].datasetIndex;
+                            setBusLineHoverOpacity(ch, ds);
+                        }
+                    };
+
+                    if (!timeSeriesChart) {
+                        timeSeriesChart = new Chart(canvas.getContext('2d'), {
+                            type: 'line',
+                            data: { datasets: [fleetDataset, ...busDatasets] },
+                            options: chartOptions
+                        });
+                    } else {
+                        timeSeriesChart.data.datasets = [fleetDataset, ...busDatasets];
+                        timeSeriesChart.update();
+                    }
+                    requestAnimationFrame(() => { if (timeSeriesChart) timeSeriesChart.resize(); });
+                } catch (err) {
+                    console.error('Time series chart failed:', err);
+                }
+            }
 
             async function fetchAndUpdate() {
                 const tempValues = tempSliderEl.noUiSlider.get(true);
@@ -139,6 +287,10 @@
                     placeholder.classList.add('hidden');
                     noDataContainer.innerHTML = '';
                     noDataContainer.classList.add('hidden');
+                    if (timeSeriesChart) {
+                        timeSeriesChart.destroy();
+                        timeSeriesChart = null;
+                    }
                     Object.keys(donutCharts).forEach(busId => {
                         donutCharts[busId].destroy();
                         delete donutCharts[busId];
@@ -153,9 +305,14 @@
                     placeholder.classList.remove('hidden');
                     noDataContainer.innerHTML = '';
                     noDataContainer.classList.add('hidden');
+                    refreshTimeSeriesChart();
                 } else {
                     cardWrapper.classList.remove('hidden');
                     placeholder.classList.add('hidden');
+                    if (timeSeriesChart) {
+                        timeSeriesChart.destroy();
+                        timeSeriesChart = null;
+                    }
                     updateDetailBreakdown();
                 }
             }

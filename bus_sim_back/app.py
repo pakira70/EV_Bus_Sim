@@ -212,7 +212,11 @@ def get_fleet_analytics_data():
         
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         df['moving_avg_power_kw'] = df['moving_avg_power_kw'].round(2)
-        
+
+        df['moving_avg_power_kw'] = df['moving_avg_power_kw'].fillna(0)
+        df['avg_power_kw'] = df['avg_power_kw'].fillna(0)
+        df['avg_temp'] = df['avg_temp'].fillna(0)
+
         # In JSON, object keys must be strings. Convert numeric bus IDs to strings for the output keys.
         df['bus'] = df['bus'].astype(str)
         bus_list_str = [str(bus_id) for bus_id in bus_list]
