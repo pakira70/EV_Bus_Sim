@@ -48,6 +48,49 @@
         box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.35);
     }
 
+    .snapshot-section {
+        margin-top: 2.5em;
+    }
+    .snapshot-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 0.5em;
+    }
+    .snapshot-section-head h2 {
+        margin: 0;
+        font-size: 1.5em;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        border: none;
+        padding: 0;
+    }
+    .snapshot-toggle {
+        padding: 6px 14px;
+        font-size: 0.85em;
+        flex-shrink: 0;
+    }
+    .snapshot-panel {
+        display: grid;
+        grid-template-rows: 1fr;
+        transition: grid-template-rows 0.22s ease;
+    }
+    .snapshot-panel.is-collapsed {
+        grid-template-rows: 0fr;
+    }
+    .snapshot-panel-inner {
+        overflow: hidden;
+        min-height: 0;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .snapshot-panel {
+            transition: none;
+        }
+    }
+
     .comparison-column .chart-canvas-wrapper {
         height: 200px;
         max-width: 260px;
@@ -103,23 +146,34 @@
             </div>
         </div>
 
-        <h2>Fleet Snapshot</h2>
-        <table class="snapshot-table">
-            <thead>
-                <tr><th>Metric</th><th>Fleet Average</th><th>Most Efficient</th><th>Least Efficient</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Avg. Energy Use<br><span class="snapshot-sub-text">(kW/hour)</span></td>
-                    <td id="s-fleet-power">--</td>
-                    <td id="s-best-power">--</td>
-                    <td id="s-worst-power">--</td>
-                </tr>
-                <tr><td>Est. Range (Hours)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-h">--</td><td id="s-best-range-h">--</td><td id="s-worst-range-h">--</td></tr>
-                <tr><td>Avg. Economy<br><span class="snapshot-sub-text">(kWh/mile)</span></td><td id="s-fleet-economy">--</td><td id="s-best-economy">--</td><td id="s-worst-economy">--</td></tr>
-                <tr><td>Est. Range (Miles)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-m">--</td><td id="s-best-range-m">--</td><td id="s-worst-range-m">--</td></tr>
-            </tbody>
-        </table>
+        <section class="snapshot-section" aria-label="Fleet snapshot summary">
+            <div class="snapshot-section-head">
+                <h2>Fleet Snapshot</h2>
+                <button type="button" class="btn snapshot-toggle" id="snapshotToggle" aria-expanded="true" aria-controls="snapshotPanel">
+                    <span class="snapshot-toggle-label">Hide</span>
+                </button>
+            </div>
+            <div id="snapshotPanel" class="snapshot-panel" role="region" aria-label="Fleet snapshot metrics">
+                <div class="snapshot-panel-inner">
+                    <table class="snapshot-table">
+                        <thead>
+                            <tr><th>Metric</th><th>Fleet Average</th><th>Most Efficient</th><th>Least Efficient</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Avg. Energy Use<br><span class="snapshot-sub-text">(kW/hour)</span></td>
+                                <td id="s-fleet-power">--</td>
+                                <td id="s-best-power">--</td>
+                                <td id="s-worst-power">--</td>
+                            </tr>
+                            <tr><td>Est. Range (Hours)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-h">--</td><td id="s-best-range-h">--</td><td id="s-worst-range-h">--</td></tr>
+                            <tr><td>Avg. Economy<br><span class="snapshot-sub-text">(kWh/mile)</span></td><td id="s-fleet-economy">--</td><td id="s-best-economy">--</td><td id="s-worst-economy">--</td></tr>
+                            <tr><td>Est. Range (Miles)<br><span class="snapshot-sub-text">(at 85% Usable SOC)</span></td><td id="s-fleet-range-m">--</td><td id="s-best-range-m">--</td><td id="s-worst-range-m">--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
         <div class="view-toggle" role="tablist">
             <button type="button" class="view-toggle-option active" data-view="subsystem" id="viewToggleSubsystem">Energy Use by Sub-System</button>
@@ -693,6 +747,41 @@
                     } 
                 });
             }
+
+            function initSnapshotSection() {
+                const SNAPSHOT_PREF_KEY = 'fleetAnalytics.snapshotExpanded';
+                const snapshotNarrowMq = window.matchMedia('(max-width: 900px)');
+                const panel = document.getElementById('snapshotPanel');
+                const btn = document.getElementById('snapshotToggle');
+                if (!panel || !btn) return;
+                const labelEl = btn.querySelector('.snapshot-toggle-label');
+                let expanded;
+
+                function defaultExpanded() {
+                    return !snapshotNarrowMq.matches;
+                }
+
+                const stored = sessionStorage.getItem(SNAPSHOT_PREF_KEY);
+                if (stored === null) {
+                    expanded = defaultExpanded();
+                } else {
+                    expanded = stored === 'true';
+                }
+
+                function applyExpanded(isExpanded) {
+                    expanded = isExpanded;
+                    sessionStorage.setItem(SNAPSHOT_PREF_KEY, String(expanded));
+                    panel.classList.toggle('is-collapsed', !expanded);
+                    panel.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+                    btn.setAttribute('aria-expanded', String(expanded));
+                    const verb = expanded ? 'Hide' : 'Show';
+                    labelEl.textContent = verb;
+                    btn.setAttribute('aria-label', `${verb} fleet snapshot table`);
+                }
+
+                applyExpanded(expanded);
+                btn.addEventListener('click', () => applyExpanded(!expanded));
+            }
             
         function initializeControls() {
             noUiSlider.create(tempSliderEl, {
@@ -738,6 +827,7 @@
         }
             Chart.register(ChartDataLabels);
             initializeControls();
+            initSnapshotSection();
             fetchAndUpdate();
         });
     </script>
