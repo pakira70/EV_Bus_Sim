@@ -100,10 +100,11 @@
             let allBusData = {};
             let allBusIDs = [];
             let selectedBuses = [];
+            const donutCharts = {};
 
             const formatNumber = (num, digits = 1, defaultVal = '--') => parseFloat(num) ? parseFloat(num).toFixed(digits) : defaultVal;
 
-            async function initialLoad() {
+            async function fetchAndUpdate() {
                 const tempValues = tempSliderEl.noUiSlider.get(true);
                 const params = new URLSearchParams({ low_temp: tempValues[0], high_temp: tempValues[1] });
                 try {
@@ -113,7 +114,7 @@
                     
                     allBusData = data.fleet_metrics_by_bus;
                     allBusIDs = data.bus_list || [];
-                    selectedBuses = []; 
+                    selectedBuses = selectedBuses.filter(id => allBusIDs.map(String).includes(String(id)));
 
                     updateSnapshotTable(data.snapshot_kpis, allBusData, ESS_CAPACITY_KWH);
                     handleSelectionChange(); 
@@ -135,49 +136,70 @@
             }
 
             function updateBusComparisonBarChart() {
-                if (busComparisonBarChart) {
-                    busComparisonBarChart.destroy();
-                }
-
                 const sortedBuses = Object.entries(allBusData).sort((a, b) => a[1].avg_power_kw - b[1].avg_power_kw);
                 const labels = sortedBuses.map(entry => entry[0]);
-                const data = sortedBuses.map(entry => entry[1].avg_power_kw);
-                const backgroundColors = sortedBuses.map(entry => {
-                    return selectedBuses.includes(entry[0]) ? 'var(--color-primary)' : '#5F6368';
-                });
+                const dataValues = sortedBuses.map(entry => entry[1].avg_power_kw);
+                const backgroundColors = labels.map(id => selectedBuses.includes(id) ? 'var(--color-primary)' : '#5F6368');
 
-                busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
-                    type: 'bar',
-                    data: { labels: labels, datasets: [{ label: 'Avg. Energy Use (kW)', data: data, backgroundColor: backgroundColors }] },
-                    options: {
-                        animation: false,
-                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false }, datalabels: { display: false } },
-                        scales: {
-                            y: { ticks: { color: '#e8eaed' } },
-                            x: {
-                                ticks: { color: '#e8eaed' },
-                                title: { display: true, text: 'Average Energy Use (kW/hour)', color: '#e8eaed' }
-                            }
-                        },
-                        onHover: (event, chartElement) => {
-                            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                        },
-                        onClick: (event) => {
-                            const points = busComparisonBarChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                            if (points.length) {
-                                const firstPoint = points[0];
-                                const busId = busComparisonBarChart.data.labels[firstPoint.index];
-                                const index = selectedBuses.indexOf(busId);
-                                if (index > -1) { selectedBuses.splice(index, 1); } 
-                                else { selectedBuses.push(busId); }
-                                handleSelectionChange();
-                            }
-                        }
-                    }
-                });
                 const chartContainer = document.getElementById('mainBarChartContainer');
                 chartContainer.style.height = `${Math.max(400, labels.length * 25)}px`;
+
+                if (!busComparisonBarChart) {
+                    busComparisonBarChart = new Chart(document.getElementById('busComparisonBarChart'), {
+                        type: 'bar',
+                        data: { labels: labels, datasets: [{ label: 'Avg. Energy Use (kW)', data: dataValues, backgroundColor: backgroundColors }] },
+                        options: {
+                            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { display: false }, datalabels: { display: false } },
+                            scales: {
+                                y: { ticks: { color: '#e8eaed' } },
+                                x: {
+                                    ticks: { color: '#e8eaed' },
+                                    title: { display: true, text: 'Average Energy Use (kW/hour)', color: '#e8eaed' }
+                                }
+                            },
+                            onHover: (event, chartElement) => {
+                                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                            },
+                            onClick: (event) => {
+                                const points = busComparisonBarChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                                if (points.length) {
+                                    const firstPoint = points[0];
+                                    const busId = busComparisonBarChart.data.labels[firstPoint.index];
+                                    const index = selectedBuses.indexOf(busId);
+                                    if (index > -1) { selectedBuses.splice(index, 1); } 
+                                    else { selectedBuses.push(busId); }
+                                    handleSelectionChange();
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    busComparisonBarChart.data.labels = labels;
+                    busComparisonBarChart.data.datasets[0].data = dataValues;
+                    busComparisonBarChart.data.datasets[0].backgroundColor = backgroundColors;
+                    busComparisonBarChart.update();
+                }
+            }
+
+            function updateDetailColumn(col, busId, metrics) {
+                const regenPercent = formatNumber(metrics.regen_offset_percent, 1);
+                const fill = col.querySelector('.regen-bar-fill');
+                const txt = col.querySelector('.regen-bar-text');
+                if (fill) fill.style.width = `${regenPercent}%`;
+                if (txt) txt.textContent = `${regenPercent}%`;
+                const d = metrics.breakdown_kw;
+                const keys = Object.keys(d).filter(key => d[key] > 0.01);
+                const palette = ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'];
+                let chart = donutCharts[busId];
+                if (!chart) {
+                    donutCharts[busId] = createDonutChart(`donut-${busId}`, metrics.breakdown_kw);
+                    return;
+                }
+                chart.data.labels = keys;
+                chart.data.datasets[0].data = keys.map(k => d[k]);
+                chart.data.datasets[0].backgroundColor = keys.map((_, i) => palette[i]);
+                chart.update();
             }
 
             function updateDetailBreakdown() {
@@ -185,24 +207,60 @@
                 const cardWrapper = document.getElementById('cardWrapper');
                 const noDataContainer = document.getElementById('noDataNotificationContainer');
                 
-                cardWrapper.innerHTML = '';
                 noDataContainer.innerHTML = '';
                 noDataContainer.classList.add('hidden');
 
                 if (selectedBuses.length === 0) {
                     detailContainer.classList.add('hidden');
+                    cardWrapper.innerHTML = '';
+                    Object.keys(donutCharts).forEach(busId => {
+                        donutCharts[busId].destroy();
+                        delete donutCharts[busId];
+                    });
                     return;
                 }
 
                 detailContainer.classList.remove('hidden');
+
+                cardWrapper.querySelectorAll('[data-detail-bus]').forEach(el => {
+                    const busId = el.getAttribute('data-detail-bus');
+                    if (!selectedBuses.includes(busId)) {
+                        if (donutCharts[busId]) {
+                            donutCharts[busId].destroy();
+                            delete donutCharts[busId];
+                        }
+                        el.remove();
+                    }
+                });
 
                 const busesWithData = selectedBuses.filter(busId => allBusData[busId] && allBusData[busId].avg_power_kw > 0);
                 const busesWithoutData = selectedBuses.filter(busId => !allBusData[busId] || allBusData[busId].avg_power_kw === 0);
 
                 busesWithData.forEach(busId => {
                     const busMetrics = allBusData[busId];
-                    cardWrapper.insertAdjacentHTML('beforeend', createComparisonColumnHTML(busId, busMetrics));
-                    createDonutChart(`donut-${busId}`, busMetrics.breakdown_kw);
+                    const col = cardWrapper.querySelector(`[data-detail-bus="${busId}"]`);
+                    if (!col) {
+                        cardWrapper.insertAdjacentHTML('beforeend', createComparisonColumnHTML(busId, busMetrics));
+                        donutCharts[busId] = createDonutChart(`donut-${busId}`, busMetrics.breakdown_kw);
+                    } else {
+                        updateDetailColumn(col, busId, busMetrics);
+                    }
+                });
+
+                busesWithoutData.forEach(busId => {
+                    const col = cardWrapper.querySelector(`[data-detail-bus="${busId}"]`);
+                    if (col) {
+                        if (donutCharts[busId]) {
+                            donutCharts[busId].destroy();
+                            delete donutCharts[busId];
+                        }
+                        col.remove();
+                    }
+                });
+
+                busesWithData.forEach(busId => {
+                    const el = cardWrapper.querySelector(`[data-detail-bus="${busId}"]`);
+                    if (el) cardWrapper.appendChild(el);
                 });
 
                 if (busesWithoutData.length > 0) {
@@ -253,7 +311,7 @@
             function createComparisonColumnHTML(title, metrics) {
                 const regenPercent = formatNumber(metrics.regen_offset_percent, 1);
                 return `
-                    <div class="comparison-column">
+                    <div class="comparison-column" data-detail-bus="${title}">
                         <div class="chart-box">
                             <h3>Bus ${title}</h3>
                             <div class="chart-canvas-wrapper">
@@ -268,11 +326,13 @@
 
             function createDonutChart(canvasId, data) {
                 const ctx = document.getElementById(canvasId).getContext('2d');
+                const keys = Object.keys(data).filter(key => data[key] > 0.01);
+                const palette = ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'];
                 const chartData = {
-                    labels: Object.keys(data).filter(key => data[key] > 0.01),
-                    datasets: [{ data: Object.values(data).filter(val => val > 0.01), backgroundColor: ['#FF6384', '#FF9F40', '#FFCE56', '#4BC0C0', '#36A2EB'] }]
+                    labels: keys,
+                    datasets: [{ data: keys.map(k => data[k]), backgroundColor: keys.map((_, i) => palette[i]) }]
                 };
-                new Chart(ctx, { type: 'doughnut', data: chartData,
+                return new Chart(ctx, { type: 'doughnut', data: chartData,
                     options: { 
                         responsive: true, maintainAspectRatio: false, cutout: '50%', 
                         plugins: { 
@@ -291,7 +351,7 @@
                 document.getElementById('tempValueLower').textContent = `${Math.round(values[0])}°F`;
                 document.getElementById('tempValueUpper').textContent = `${Math.round(values[1])}°F`;
             });
-            tempSliderEl.noUiSlider.on('change', initialLoad);
+            tempSliderEl.noUiSlider.on('change', fetchAndUpdate);
             
             $('#timeSeriesBusSelector').select2({ placeholder: 'Select buses to compare on the chart', allowClear: true });
             
@@ -299,13 +359,9 @@
             document.getElementById('selectAllBusesBtn').addEventListener('click', () => {
                 if (!busComparisonBarChart) return;
 
-                // 1. Update the internal list of what is selected.
-                selectedBuses = [...allBusIDs]; 
-                
-                // 2. Give the direct command: "Make all bars blue."
-                busComparisonBarChart.data.datasets[0].backgroundColor = allBusIDs.map(() => 'var(--color-primary)');
-                
-                // 3. Tell the chart to show the changes and update the detail cards.
+                const labs = busComparisonBarChart.data.labels;
+                selectedBuses = [...labs];
+                busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => 'var(--color-primary)');
                 busComparisonBarChart.update();
                 updateDetailBreakdown();
             });
@@ -313,20 +369,16 @@
             document.getElementById('clearSelectionBtn').addEventListener('click', () => {
                 if (!busComparisonBarChart) return;
                 
-                // 1. Update the internal list.
                 selectedBuses = []; 
-
-                // 2. Give the direct command: "Make all bars gray."
-                busComparisonBarChart.data.datasets[0].backgroundColor = allBusIDs.map(() => '#5F6368');
-                
-                // 3. Tell the chart to show the changes and update the detail cards.
+                const labs = busComparisonBarChart.data.labels;
+                busComparisonBarChart.data.datasets[0].backgroundColor = labs.map(() => '#5F6368');
                 busComparisonBarChart.update();
                 updateDetailBreakdown();
             });
         }
             Chart.register(ChartDataLabels);
             initializeControls();
-            initialLoad();
+            fetchAndUpdate();
         });
     </script>
     
