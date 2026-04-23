@@ -48,8 +48,22 @@ document.addEventListener('DOMContentLoaded', function() {
   const cancelChargerDetailsBtn = document.getElementById('cancel-charger-details-btn');
   const chargerListContainer = document.getElementById('charger-list-container');
   const chargerStatus = document.getElementById('charger-status');
+  const quickStartStatus = document.getElementById('quick-start-status');
+  const sourcePrincetonBtn = document.getElementById('config-source-princeton');
+  const sourceManualBtn = document.getElementById('config-source-manual');
+  const quickStartPanel = document.getElementById('princeton-quickstart-panel');
+  const presetMonthSelect = document.getElementById('preset-month');
+  const presetYearSelect = document.getElementById('preset-year');
+  const suggestedEssValue = document.getElementById('suggested-ess-value');
+  const suggestedEuValue = document.getElementById('suggested-eu-value');
+  const suggestedChargeValue = document.getElementById('suggested-charge-value');
+  const suggestedTempValue = document.getElementById('suggested-temp-value');
+  const applyPrincetonDefaultsBtn = document.getElementById('apply-princeton-defaults-btn');
+  const provenanceSummary = document.getElementById('provenance-summary');
 
   let chargers = []; // in-memory list
+  let availablePresetPeriods = [];
+  let currentPresetPayload = null;
 
   // --- Small utilities ---
   const toNum = (v) => {
@@ -68,6 +82,116 @@ document.addEventListener('DOMContentLoaded', function() {
   const dispatchConfigChanged = (what) => {
     try { document.dispatchEvent(new CustomEvent('evsim:config-changed', { detail: { what } })); } catch {}
   };
+  const formatNumber = (value, digits = 2) => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+    return Number(value).toFixed(digits);
+  };
+  const formatInt = (value) => {
+    if (!Number.isFinite(Number(value))) return '0';
+    return Number(value).toLocaleString();
+  };
+
+  function updateSourceButtons(source) {
+    if (sourcePrincetonBtn) sourcePrincetonBtn.classList.toggle('active', source === 'princeton');
+    if (sourceManualBtn) sourceManualBtn.classList.toggle('active', source !== 'princeton');
+    if (quickStartPanel) quickStartPanel.style.display = source === 'princeton' ? 'block' : 'none';
+  }
+
+  function persistSourceContext(source, year = null, month = null) {
+    try {
+      localStorage.setItem('configSource', source);
+      if (year != null && month != null) {
+        localStorage.setItem('configPeriodYear', String(year));
+        localStorage.setItem('configPeriodMonth', String(month));
+      }
+    } catch {}
+  }
+
+  function updatePresetReadout(payload) {
+    const defaults = payload?.suggested_defaults || {};
+    if (suggestedEssValue) suggestedEssValue.textContent = defaults.ess_capacity_kwh != null ? `${formatNumber(defaults.ess_capacity_kwh, 0)} kWh` : '--';
+    if (suggestedEuValue) suggestedEuValue.textContent = defaults.avg_energy_use_kw != null ? `${formatNumber(defaults.avg_energy_use_kw, 1)} kW` : '--';
+    if (suggestedChargeValue) suggestedChargeValue.textContent = defaults.charge_rate_kw != null ? `${formatNumber(defaults.charge_rate_kw, 1)} kW` : 'Not available for this period';
+    if (suggestedTempValue) suggestedTempValue.textContent = defaults.avg_monthly_temp_f != null ? `${formatNumber(defaults.avg_monthly_temp_f, 1)}°F` : '--';
+
+    const prov = payload?.provenance || {};
+    const source = payload?.source || {};
+    if (provenanceSummary) {
+      provenanceSummary.textContent = `Source: ${source.location || 'Princeton, NJ'} | ${formatInt(prov.buses)} buses | ${formatInt(prov.months)} months | ${formatInt(prov.trips)} trips | ${formatInt(prov.charging_sessions)} charging sessions`;
+    }
+  }
+
+  async function fetchPrincetonPreset(year = null, month = null) {
+    if (!presetMonthSelect || !presetYearSelect) return;
+    try {
+      const params = new URLSearchParams();
+      if (year != null) params.set('year', String(year));
+      if (month != null) params.set('month', String(month));
+      const response = await fetch(`/api/config_presets/princeton?${params.toString()}`);
+      if (!response.ok) throw new Error(`Preset fetch failed: ${response.status}`);
+      const payload = await response.json();
+      currentPresetPayload = payload;
+      availablePresetPeriods = Array.isArray(payload.available_periods) ? payload.available_periods : [];
+
+      const years = [...new Set(availablePresetPeriods.map(p => Number(p.year)).filter(Number.isFinite))].sort((a, b) => b - a);
+      presetYearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+      const selectedYear = Number(payload.selected_period?.year);
+      if (selectedYear) presetYearSelect.value = String(selectedYear);
+
+      const filteredMonths = availablePresetPeriods
+        .filter(p => Number(p.year) === Number(presetYearSelect.value))
+        .map(p => Number(p.month))
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b);
+      presetMonthSelect.innerHTML = filteredMonths.map(m => `<option value="${m}">${new Date(2000, m - 1, 1).toLocaleString(undefined, { month: 'long' })}</option>`).join('');
+      const selectedMonth = Number(payload.selected_period?.month);
+      if (selectedMonth) presetMonthSelect.value = String(selectedMonth);
+
+      updatePresetReadout(payload);
+      persistSourceContext('princeton', payload.selected_period?.year, payload.selected_period?.month);
+    } catch (error) {
+      console.error(error);
+      if (quickStartStatus) displayStatus(quickStartStatus, 'Unable to load Princeton presets. You can still configure manually.', true);
+    }
+  }
+
+  async function refreshPresetForSelection() {
+    if (!presetYearSelect || !presetMonthSelect) return;
+    const year = Number(presetYearSelect.value);
+    const month = Number(presetMonthSelect.value);
+    if (!year || !month) return;
+    await fetchPrincetonPreset(year, month);
+  }
+
+  function applyPresetToConfiguration() {
+    if (!currentPresetPayload) {
+      if (quickStartStatus) displayStatus(quickStartStatus, 'No preset selected yet.', true);
+      return;
+    }
+    const defaults = currentPresetPayload.suggested_defaults || {};
+
+    if (essCapacityInput && defaults.ess_capacity_kwh != null) essCapacityInput.value = String(Math.round(defaults.ess_capacity_kwh));
+    if (euRateInput && defaults.avg_energy_use_kw != null) euRateInput.value = String(defaults.avg_energy_use_kw);
+
+    const chargeRate = defaults.charge_rate_kw;
+    if (Number.isFinite(Number(chargeRate))) {
+      try { localStorage.setItem('quickStartChargeRateKw', String(chargeRate)); } catch {}
+      if (Array.isArray(chargers) && chargers.length === 0) {
+        chargers.push({ name: 'Depot Charger 1', rate: Number(chargeRate) });
+        localStorage.setItem('chargers', JSON.stringify(chargers));
+        renderChargers();
+      }
+    } else {
+      try { localStorage.removeItem('quickStartChargeRateKw'); } catch {}
+    }
+
+    const year = currentPresetPayload.selected_period?.year;
+    const month = currentPresetPayload.selected_period?.month;
+    persistSourceContext('princeton', year, month);
+    saveBusParameters();
+    dispatchConfigChanged('quickStartPreset');
+    if (quickStartStatus) displayStatus(quickStartStatus, 'Real-world values applied. You can edit any field before continuing.');
+  }
 
   // --- Bus parameter save/load ---
   function saveBusParameters() {
@@ -204,7 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!chargerData) {
       const nextName = getNextChargerName();
       const last = chargers[chargers.length - 1];
-      const nextRate = (last && typeof last.rate === 'number') ? last.rate : '';
+      const quickStartRate = toNum(localStorage.getItem('quickStartChargeRateKw'));
+      const nextRate = (last && typeof last.rate === 'number') ? last.rate : (Number.isFinite(quickStartRate) ? quickStartRate : '');
       chargerData = { name: nextName, rate: nextRate };
     }
 
@@ -261,7 +386,8 @@ document.addEventListener('DOMContentLoaded', function() {
       try { const stored = localStorage.getItem('chargers'); chargers = stored ? JSON.parse(stored) : []; } catch { chargers = []; }
       const last = chargers[chargers.length - 1];
       const nextName = getNextChargerName();
-      const nextRate = (last && typeof last.rate === 'number') ? last.rate : '';
+      const quickStartRate = toNum(localStorage.getItem('quickStartChargeRateKw'));
+      const nextRate = (last && typeof last.rate === 'number') ? last.rate : (Number.isFinite(quickStartRate) ? quickStartRate : '');
       showChargerForm({ name: nextName, rate: nextRate }, -1);
     });
   }
@@ -269,12 +395,50 @@ document.addEventListener('DOMContentLoaded', function() {
   if (cancelChargerDetailsBtn && chargerFormContainer) {
     cancelChargerDetailsBtn.addEventListener('click', () => { chargerFormContainer.style.display = 'none'; });
   }
+  if (sourcePrincetonBtn) {
+    sourcePrincetonBtn.addEventListener('click', () => {
+      updateSourceButtons('princeton');
+      persistSourceContext('princeton');
+      if (!currentPresetPayload) fetchPrincetonPreset();
+    });
+  }
+  if (sourceManualBtn) {
+    sourceManualBtn.addEventListener('click', () => {
+      updateSourceButtons('manual');
+      persistSourceContext('manual');
+      if (quickStartStatus) displayStatus(quickStartStatus, 'Manual mode selected. Existing values remain editable.');
+    });
+  }
+  if (presetYearSelect) {
+    presetYearSelect.addEventListener('change', async () => {
+      const chosenYear = Number(presetYearSelect.value);
+      const filteredMonths = availablePresetPeriods
+        .filter(p => Number(p.year) === chosenYear)
+        .map(p => Number(p.month))
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b);
+      if (presetMonthSelect) {
+        presetMonthSelect.innerHTML = filteredMonths.map(m => `<option value="${m}">${new Date(2000, m - 1, 1).toLocaleString(undefined, { month: 'long' })}</option>`).join('');
+      }
+      await refreshPresetForSelection();
+    });
+  }
+  if (presetMonthSelect) presetMonthSelect.addEventListener('change', refreshPresetForSelection);
+  if (applyPrincetonDefaultsBtn) applyPrincetonDefaultsBtn.addEventListener('click', applyPresetToConfiguration);
 
   // --- Initial Load ---
   if (document.getElementById('bus-params-content')) {
     loadBusParameters();
     loadChargers();
     switchTab('bus-params');
+
+    const source = localStorage.getItem('configSource') || 'princeton';
+    updateSourceButtons(source);
+    if (source === 'princeton') {
+      const storedYear = toNum(localStorage.getItem('configPeriodYear'));
+      const storedMonth = toNum(localStorage.getItem('configPeriodMonth'));
+      fetchPrincetonPreset(Number.isFinite(storedYear) ? storedYear : null, Number.isFinite(storedMonth) ? storedMonth : null);
+    }
   }
 
   // --- Editor helpers exposed globally ---

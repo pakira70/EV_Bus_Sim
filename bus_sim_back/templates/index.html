@@ -31,6 +31,44 @@
                 <h2>Bus Fleet Parameters</h2>
                 <p>Define the standard characteristics and simulation warnings for the buses.</p>
 
+                <section class="quick-start-card" aria-labelledby="quick-start-title">
+                    <div class="quick-start-head">
+                        <h3 id="quick-start-title">Quick Start</h3>
+                        <p class="helper-text">Use real-world Princeton fleet data to prefill settings, then edit as needed.</p>
+                    </div>
+                    <div class="quick-start-toggle" role="tablist" aria-label="Configuration source">
+                        <button id="config-source-princeton" class="quick-start-option active" type="button" data-source="princeton">Use Real-World Data</button>
+                        <button id="config-source-manual" class="quick-start-option" type="button" data-source="manual">Configure Manually</button>
+                    </div>
+                    <div id="princeton-quickstart-panel" class="quick-start-panel">
+                        <div class="quick-start-grid">
+                            <div class="form-group">
+                                <label for="preset-month">Month:</label>
+                                <select id="preset-month"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="preset-year">Year:</label>
+                                <select id="preset-year"></select>
+                            </div>
+                        </div>
+                        <div class="quick-start-preview">
+                            <p><span>ESS Capacity:</span><strong id="suggested-ess-value">--</strong></p>
+                            <p><span>Energy Use per Hour:</span><strong id="suggested-eu-value">--</strong></p>
+                            <p><span>Average Charge Session Rate:</span><strong id="suggested-charge-value">--</strong></p>
+                            <p><span>Average Monthly Temperature:</span><strong id="suggested-temp-value">--</strong></p>
+                        </div>
+                        <div class="quick-start-actions">
+                            <button id="apply-princeton-defaults-btn" type="button">Apply</button>
+                            <a class="quick-start-link" href="{{ url_for('editor') }}">Go to Schedule Editor</a>
+                        </div>
+                        <p id="quick-start-status" class="status-message"></p>
+                    </div>
+                    <div class="provenance-note" aria-live="polite">
+                        <p id="provenance-summary">Source: Princeton, NJ fleet dataset.</p>
+                        <p class="helper-text">Counts reflect historical records currently loaded in this workspace.</p>
+                    </div>
+                </section>
+
                 <div class="form-group">
                     <label for="ess-capacity">ESS Capacity (kWh):</label>
                     <input type="number" id="ess-capacity" value="435" min="1">
@@ -38,9 +76,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="eu-rate">Average Energy Use Rate (EU) during RUN (kW):</label>
+                    <label for="eu-rate">Average Energy Use per Hour during RUN (kW):</label>
                     <input type="number" id="eu-rate" value="55" min="0">
-                     <p class="helper-text">(Rate of energy consumption during RUN state)</p>
+                     <p class="helper-text">(Average total energy used each operating hour during RUN state)</p>
                      <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
                 </div>
 

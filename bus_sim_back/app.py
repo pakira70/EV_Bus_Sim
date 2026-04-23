@@ -73,6 +73,16 @@ def analytics(): return render_template('fleet_analytics.html')
 @app.route('/temp_insights')
 def temp_insights_page(): return render_template('temp_insights.html')
 
+def _table_exists(cur, table_name):
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table_name,))
+    return cur.fetchone() is not None
+
+
+def _column_exists(cur, table_name, column_name):
+    cur.execute(f"PRAGMA table_info({table_name})")
+    cols = [row["name"] for row in cur.fetchall()]
+    return column_name in cols
+
 # --- Bus Parameter API (FOR CONFIG PAGE) ---
 @app.route('/api/bus_params', methods=['GET', 'POST'])
 def bus_params():
@@ -102,6 +112,122 @@ def bus_params():
         except Exception as e:
             conn.close()
             return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/config_presets/princeton', methods=['GET'])
+def config_presets_princeton():
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    if not _table_exists(cur, 'operational_segments'):
+        conn.close()
+        return jsonify({"error": "Operational data is unavailable."}), 404
+
+    selected_year = request.args.get('year', type=int)
+    selected_month = request.args.get('month', type=int)
+
+    cur.execute("""
+        SELECT DISTINCT
+            CAST(strftime('%Y', date) AS INTEGER) AS year,
+            CAST(strftime('%m', date) AS INTEGER) AS month
+        FROM operational_segments
+        WHERE date IS NOT NULL
+        ORDER BY year DESC, month DESC
+    """)
+    periods = [dict(row) for row in cur.fetchall() if row['year'] and row['month']]
+
+    if not periods:
+        conn.close()
+        return jsonify({"error": "No historical periods are available."}), 404
+
+    if selected_year is None or selected_month is None:
+        selected_year = periods[0]['year']
+        selected_month = periods[0]['month']
+
+    # Suggested values for selected period
+    period_params = {'year': selected_year, 'month': selected_month}
+    cur.execute("""
+        SELECT
+            SUM(energy_used_kwh) AS total_energy_kwh,
+            SUM(duration_hours) AS total_duration_hours,
+            AVG(average_temperature_f) AS avg_monthly_temp_f
+        FROM operational_segments
+        WHERE activity_type = 'DRIVING'
+          AND CAST(strftime('%Y', date) AS INTEGER) = :year
+          AND CAST(strftime('%m', date) AS INTEGER) = :month
+    """, period_params)
+    period_ops = dict(cur.fetchone() or {})
+
+    suggested_eu_kw = None
+    if period_ops.get('total_duration_hours'):
+        duration = period_ops['total_duration_hours'] or 0
+        if duration > 0:
+            suggested_eu_kw = (period_ops.get('total_energy_kwh') or 0) / duration
+
+    # Prefer default ESS value from configured parameters to keep behavior stable.
+    cur.execute("SELECT ess_capacity_kwh FROM bus_parameters WHERE id = 1")
+    ess_row = cur.fetchone()
+    suggested_ess_kwh = (ess_row['ess_capacity_kwh'] if ess_row else None) or 435
+
+    # Suggested charge rate if charging sessions are present in the selected period.
+    suggested_charge_rate_kw = None
+    if _table_exists(cur, 'charging_sessions'):
+        charge_rate_col = None
+        if _column_exists(cur, 'charging_sessions', 'soc_based_charge_power_kw'):
+            charge_rate_col = 'soc_based_charge_power_kw'
+        elif _column_exists(cur, 'charging_sessions', 'average_charging_power_kw'):
+            charge_rate_col = 'average_charging_power_kw'
+
+        if charge_rate_col:
+            cur.execute(f"""
+                SELECT AVG({charge_rate_col}) AS avg_charge_rate_kw
+                FROM charging_sessions
+                WHERE CAST(strftime('%Y', date) AS INTEGER) = :year
+                  AND CAST(strftime('%m', date) AS INTEGER) = :month
+                  AND {charge_rate_col} > 0
+            """, period_params)
+            charge_row = cur.fetchone()
+            if charge_row and charge_row['avg_charge_rate_kw'] is not None:
+                suggested_charge_rate_kw = charge_row['avg_charge_rate_kw']
+
+    # Provenance metrics are all-time for context.
+    cur.execute("SELECT COUNT(DISTINCT bus) AS bus_count FROM operational_segments")
+    bus_count = (cur.fetchone() or {'bus_count': 0})['bus_count'] or 0
+
+    cur.execute("SELECT COUNT(DISTINCT strftime('%Y-%m', date)) AS month_count FROM operational_segments WHERE date IS NOT NULL")
+    month_count = (cur.fetchone() or {'month_count': 0})['month_count'] or 0
+
+    cur.execute("SELECT COUNT(*) AS trip_count FROM operational_segments WHERE activity_type = 'DRIVING'")
+    trip_count = (cur.fetchone() or {'trip_count': 0})['trip_count'] or 0
+
+    charging_session_count = 0
+    if _table_exists(cur, 'charging_sessions'):
+        cur.execute("SELECT COUNT(*) AS session_count FROM charging_sessions")
+        charging_session_count = (cur.fetchone() or {'session_count': 0})['session_count'] or 0
+
+    conn.close()
+
+    return jsonify({
+        "source": {
+            "id": "princeton_fleet",
+            "label": "Princeton Fleet (real-world)",
+            "location": "Princeton, NJ"
+        },
+        "selected_period": {"year": selected_year, "month": selected_month},
+        "available_periods": periods,
+        "suggested_defaults": {
+            "ess_capacity_kwh": round(float(suggested_ess_kwh), 2) if suggested_ess_kwh is not None else None,
+            "avg_energy_use_kw": round(float(suggested_eu_kw), 2) if suggested_eu_kw is not None else None,
+            "charge_rate_kw": round(float(suggested_charge_rate_kw), 2) if suggested_charge_rate_kw is not None else None,
+            "avg_monthly_temp_f": round(float(period_ops.get('avg_monthly_temp_f')), 1) if period_ops.get('avg_monthly_temp_f') is not None else None
+        },
+        "provenance": {
+            "buses": int(bus_count),
+            "months": int(month_count),
+            "trips": int(trip_count),
+            "charging_sessions": int(charging_session_count)
+        }
+    })
 
 # --- Charger API (FOR CONFIG PAGE) ---
 @app.route('/api/chargers', methods=['GET', 'POST'])
