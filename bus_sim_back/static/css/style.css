@@ -171,12 +171,194 @@ button:hover {
     color: #000;
 }
 
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+button:disabled:hover {
+    background-color: var(--color-surface-2);
+    color: var(--color-text-secondary);
+}
+
+.config-section-title {
+    margin-top: 2.5em;
+}
+
+.config-warning-fieldset {
+    margin-top: 20px;
+    border: 1px solid var(--color-border);
+    padding: 10px;
+}
+
+.charger-form-panel {
+    border: 1px solid var(--color-border);
+    padding: 18px;
+    margin-top: 20px;
+    border-radius: var(--border-radius-md);
+    background: var(--color-background);
+}
+
+.charger-quick-start-mode-toggle {
+    margin-bottom: 4px;
+}
+
+.apply-btn-pending {
+    border-color: var(--color-primary);
+    color: var(--color-text-primary);
+    box-shadow: 0 0 0 1px rgba(138, 180, 248, 0.35);
+}
+
+.apply-btn-applied {
+    opacity: 0.85;
+}
+
+.apply-btn-disabled {
+    opacity: 0.45;
+}
+
+input.config-field-applied {
+    border-color: rgba(138, 180, 248, 0.55);
+}
+
+.save-bus-params-btn.save-bus-params-attention {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px rgba(138, 180, 248, 0.35);
+    color: var(--color-text-primary);
+}
+
+.save-bus-params-btn.save-bus-params-idle {
+    opacity: 0.55;
+}
+
+.save-bus-helper {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.save-bus-params-block {
+    margin-top: 28px;
+    margin-bottom: 8px;
+}
+
 .quick-start-card {
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-lg);
-    padding: 18px;
+    padding: 25px;
     margin: 18px 0 22px;
+}
+
+.charger-quick-start-card {
+    margin-top: 1.25em;
+}
+
+.charger-page-intro-title {
+    margin-top: 2.5em;
+}
+
+.charger-page-intro {
+    color: var(--color-text-secondary);
+    margin-bottom: 0.5em;
+}
+
+.charger-list-heading {
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+}
+
+.charger-quick-start-actions {
+    margin: 16px 0 8px;
+}
+
+.btn-add-charger {
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 0.9em;
+}
+
+.charger-list-container {
+    margin-top: 8px;
+}
+
+.charger-list-empty {
+    color: var(--color-text-secondary);
+    font-size: 0.9em;
+}
+
+.charger-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.charger-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.charger-list-row:last-child {
+    border-bottom: none;
+}
+
+.charger-list-label {
+    color: var(--color-text-primary);
+    font-size: 0.95em;
+    min-width: 0;
+}
+
+.charger-list-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.charger-row-action {
+    padding: 2px 8px;
+    font-size: 0.75em;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.charger-row-action:hover {
+    color: var(--color-text-primary);
+    background: rgba(138, 180, 248, 0.12);
+}
+
+.charger-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 16px;
+}
+
+.btn-charger-primary {
+    margin: 0;
+}
+
+.btn-charger-quiet {
+    margin: 0;
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text-secondary);
+}
+
+.btn-charger-quiet:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
 }
 
 .quick-start-head {
@@ -217,28 +399,25 @@ button:hover {
     margin: 12px 0 8px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 8px 12px;
+    gap: 6px 16px;
 }
 
-.quick-start-preview p {
+.quick-start-metric-line {
     font-size: 0.9em;
     color: var(--color-text-secondary);
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
     margin: 0;
+    line-height: 1.45;
 }
 
-.quick-start-preview p span {
-    min-width: 0;
+.quick-start-metric-label {
+    margin-right: 0;
 }
 
-.quick-start-preview p strong {
+.quick-start-metric-line strong {
     color: var(--color-text-primary);
     font-weight: 600;
-    margin-left: auto;
+    margin-left: 0.35em;
     white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .quick-start-actions {
@@ -246,6 +425,7 @@ button:hover {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    margin-top: 18px;
 }
 
 .quick-start-link {

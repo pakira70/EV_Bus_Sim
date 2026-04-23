@@ -1,20 +1,12 @@
-// static/js/script.js — FULL FILE (safe incremental upgrade)
-// Keeps your existing behaviors AND adds:
-// 1) Default charger name prefilled (Depot Charger N, editable)
-// 2) “Add New Charger” clones the previous charge rate and increments the name
-// 3) Helpers for other pages: window.getConfiguredChargers() + window.getBusParams()
-// 4) Emits CustomEvent 'evsim:config-changed' when config updates (optional hook)
+// static/js/script.js — Config page: Quick Start, bus params, chargers (single-page layout)
 
-// --- Navigation Link Handler (active link on load) ---
 document.addEventListener('DOMContentLoaded', function() {
   const navLinks = document.querySelectorAll('.main-nav .nav-link');
-  if (!navLinks.length) return; // Exit if nav doesn't exist on this page
+  if (!navLinks.length) return;
 
   const currentPath = window.location.pathname;
-
   navLinks.forEach(link => {
     const linkPath = new URL(link.href, window.location.origin).pathname;
-
     if (linkPath === '/' && (currentPath === '/' || currentPath.endsWith('/index.html'))) {
       link.classList.add('active');
     } else if (linkPath !== '/' && currentPath.startsWith(linkPath)) {
@@ -23,22 +15,17 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// --- Main Config Logic ---
 document.addEventListener('DOMContentLoaded', function() {
-  // --- DOM Element References ---
   const essCapacityInput = document.getElementById('ess-capacity');
   const euRateInput = document.getElementById('eu-rate');
   const lowSocWarningInput = document.getElementById('warning-threshold-low');
   const criticalSocWarningInput = document.getElementById('warning-threshold-critical');
   const saveBusParamsButton = document.getElementById('save-bus-params-btn');
   const busParamsStatus = document.getElementById('bus-params-status');
+  const saveBusHelper = document.getElementById('save-bus-helper');
 
-  const tabBusParams = document.getElementById('tab-bus-params');
-  const tabChargerSetup = document.getElementById('tab-charger-setup');
   const busParamsContent = document.getElementById('bus-params-content');
-  const chargerSetupContent = document.getElementById('charger-setup-content');
 
-  // Charger Setup Elements
   const addChargerBtn = document.getElementById('add-charger-btn');
   const chargerFormContainer = document.getElementById('charger-form-container');
   const chargerIdInput = document.getElementById('charger-id-input');
@@ -60,16 +47,29 @@ document.addEventListener('DOMContentLoaded', function() {
   const suggestedTempValue = document.getElementById('suggested-temp-value');
   const applyPrincetonDefaultsBtn = document.getElementById('apply-princeton-defaults-btn');
   const provenanceSummary = document.getElementById('provenance-summary');
+  const chargingInfrastructureEl = document.getElementById('charging-infrastructure');
+  const ctaScrollQuickstart = document.getElementById('cta-scroll-quickstart');
+  const ctaConfigureChargerManual = document.getElementById('cta-configure-charger-manual');
 
-  let chargers = []; // in-memory list
+  const busFieldSelectors = '.config-bus-field';
+
+  let chargers = [];
   let availablePresetPeriods = [];
   let currentPresetPayload = null;
+  /** After successful Apply for the current API period */
+  let presetApplied = false;
+  /** "YYYY-MM" from last successful Apply */
+  let appliedPeriodKey = null;
+  /** Snapshot after last successful Save Bus Parameters */
+  let lastSavedBus = null;
 
-  // --- Small utilities ---
+  const LS_LAST_APPLIED_PRESET_KEY = 'configLastAppliedPresetKey';
+
   const toNum = (v) => {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : NaN;
   };
+
   const displayStatus = (element, message, isError = false) => {
     if (!element) return;
     element.textContent = message;
@@ -79,22 +79,132 @@ document.addEventListener('DOMContentLoaded', function() {
       element.className = 'status-message';
     }, 3000);
   };
+
   const dispatchConfigChanged = (what) => {
     try { document.dispatchEvent(new CustomEvent('evsim:config-changed', { detail: { what } })); } catch {}
   };
+
   const formatNumber = (value, digits = 2) => {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
     return Number(value).toFixed(digits);
   };
+
   const formatInt = (value) => {
     if (!Number.isFinite(Number(value))) return '0';
     return Number(value).toLocaleString();
   };
 
+  function getCurrentPeriodKeyFromPayload() {
+    if (!currentPresetPayload?.selected_period) return null;
+    const y = currentPresetPayload.selected_period.year;
+    const m = currentPresetPayload.selected_period.month;
+    if (!y || !m) return null;
+    return `${y}-${String(m).padStart(2, '0')}`;
+  }
+
+  function getCurrentPeriodKeyFromSelectors() {
+    if (!presetYearSelect || !presetMonthSelect) return null;
+    const y = presetYearSelect.value;
+    const m = presetMonthSelect.value;
+    if (!y || !m) return null;
+    return `${y}-${String(m).padStart(2, '0')}`;
+  }
+
+  function getCurrentBusSnapshot() {
+    return {
+      ess: String(essCapacityInput?.value ?? ''),
+      eu: String(euRateInput?.value ?? ''),
+      low: String(lowSocWarningInput?.value ?? ''),
+      critical: String(criticalSocWarningInput?.value ?? '')
+    };
+  }
+
+  function snapshotsEqual(a, b) {
+    if (!a || !b) return false;
+    return a.ess === b.ess && a.eu === b.eu && a.low === b.low && a.critical === b.critical;
+  }
+
+  function hasUnsavedBusChanges() {
+    if (!lastSavedBus) return true;
+    return !snapshotsEqual(getCurrentBusSnapshot(), lastSavedBus);
+  }
+
+  function syncLastSavedBusFromInputs() {
+    lastSavedBus = getCurrentBusSnapshot();
+  }
+
+  function setBusFieldAppliedClass(on) {
+    document.querySelectorAll(busFieldSelectors).forEach((el) => {
+      el.classList.toggle('config-field-applied', !!on);
+    });
+  }
+
+  function refreshApplyButtonState() {
+    if (!applyPrincetonDefaultsBtn) return;
+    const source = localStorage.getItem('configSource') || 'princeton';
+    applyPrincetonDefaultsBtn.classList.remove('apply-btn-pending', 'apply-btn-applied', 'apply-btn-disabled');
+    if (source !== 'princeton') {
+      applyPrincetonDefaultsBtn.classList.add('apply-btn-disabled');
+      applyPrincetonDefaultsBtn.disabled = true;
+      return;
+    }
+    applyPrincetonDefaultsBtn.disabled = false;
+    const periodKey = getCurrentPeriodKeyFromSelectors();
+    const needsApply = !presetApplied || (periodKey && appliedPeriodKey && periodKey !== appliedPeriodKey);
+    if (needsApply) {
+      applyPrincetonDefaultsBtn.classList.add('apply-btn-pending');
+    } else {
+      applyPrincetonDefaultsBtn.classList.add('apply-btn-applied');
+    }
+  }
+
+  function refreshSaveButtonState() {
+    if (!saveBusParamsButton) return;
+    const dirty = hasUnsavedBusChanges();
+    saveBusParamsButton.disabled = !dirty;
+    saveBusParamsButton.classList.toggle('save-bus-params-attention', dirty);
+    saveBusParamsButton.classList.toggle('save-bus-params-idle', !dirty);
+    if (saveBusHelper) saveBusHelper.classList.toggle('hidden', !dirty);
+  }
+
+  function refreshBusParamChrome() {
+    refreshApplyButtonState();
+    refreshSaveButtonState();
+    const source = localStorage.getItem('configSource') || 'princeton';
+    if (source !== 'princeton') {
+      setBusFieldAppliedClass(false);
+    } else {
+      setBusFieldAppliedClass(presetApplied && !hasUnsavedBusChanges());
+    }
+  }
+
+  /** Period picker changed: require Apply again for this month, but keep last-applied key for other months. */
+  function markPresetPendingFromPeriodChange() {
+    presetApplied = false;
+    appliedPeriodKey = null;
+    setBusFieldAppliedClass(false);
+    refreshBusParamChrome();
+  }
+
+  function clearApplyTrackingFully() {
+    presetApplied = false;
+    appliedPeriodKey = null;
+    try { localStorage.removeItem(LS_LAST_APPLIED_PRESET_KEY); } catch {}
+    setBusFieldAppliedClass(false);
+    refreshBusParamChrome();
+  }
+
+  function onBusFieldInput() {
+    clearApplyTrackingFully();
+  }
+
   function updateSourceButtons(source) {
     if (sourcePrincetonBtn) sourcePrincetonBtn.classList.toggle('active', source === 'princeton');
     if (sourceManualBtn) sourceManualBtn.classList.toggle('active', source !== 'princeton');
+    if (ctaScrollQuickstart) ctaScrollQuickstart.classList.toggle('active', source === 'princeton');
+    if (ctaConfigureChargerManual) ctaConfigureChargerManual.classList.toggle('active', source !== 'princeton');
     if (quickStartPanel) quickStartPanel.style.display = source === 'princeton' ? 'block' : 'none';
+    refreshBusParamChrome();
   }
 
   function persistSourceContext(source, year = null, month = null) {
@@ -149,10 +259,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
       updatePresetReadout(payload);
       persistSourceContext('princeton', payload.selected_period?.year, payload.selected_period?.month);
+
+      const apiKey = getCurrentPeriodKeyFromPayload();
+      let storedKey = null;
+      try { storedKey = localStorage.getItem(LS_LAST_APPLIED_PRESET_KEY); } catch {}
+      if (apiKey && storedKey === apiKey && valuesMatchAppliedPreset()) {
+        presetApplied = true;
+        appliedPeriodKey = apiKey;
+      } else {
+        presetApplied = false;
+        appliedPeriodKey = null;
+      }
+      refreshBusParamChrome();
     } catch (error) {
       console.error(error);
       if (quickStartStatus) displayStatus(quickStartStatus, 'Unable to load Princeton presets. You can still configure manually.', true);
     }
+  }
+
+  function valuesMatchAppliedPreset() {
+    if (!currentPresetPayload) return false;
+    const d = currentPresetPayload.suggested_defaults || {};
+    const snap = getCurrentBusSnapshot();
+    const essOk = d.ess_capacity_kwh == null || Math.abs(toNum(snap.ess) - Number(d.ess_capacity_kwh)) < 0.51;
+    const euOk = d.avg_energy_use_kw == null || Math.abs(toNum(snap.eu) - Number(d.avg_energy_use_kw)) < 0.05;
+    return essOk && euOk;
   }
 
   async function refreshPresetForSelection() {
@@ -160,7 +291,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const year = Number(presetYearSelect.value);
     const month = Number(presetMonthSelect.value);
     if (!year || !month) return;
+    markPresetPendingFromPeriodChange();
     await fetchPrincetonPreset(year, month);
+  }
+
+  /** Apply observed charge rate: create first charger or update Depot Charger 1 / first entry. */
+  function applyChargeRateToChargers(chargeRateKw) {
+    const rate = Number(chargeRateKw);
+    if (!Number.isFinite(rate) || rate <= 0) return;
+    try { localStorage.setItem('quickStartChargeRateKw', String(rate)); } catch {}
+    try {
+      const stored = localStorage.getItem('chargers');
+      chargers = stored ? JSON.parse(stored) : [];
+    } catch { chargers = []; }
+    if (!Array.isArray(chargers)) chargers = [];
+    if (chargers.length === 0) {
+      chargers.push({ name: 'Depot Charger 1', rate });
+    } else {
+      const depotIdx = chargers.findIndex(c => String(c.name).trim() === 'Depot Charger 1');
+      const idx = depotIdx >= 0 ? depotIdx : 0;
+      chargers[idx] = { ...chargers[idx], rate };
+    }
+    localStorage.setItem('chargers', JSON.stringify(chargers));
+    renderChargers();
+  }
+
+  function scrollToChargingInfrastructure() {
+    if (!chargingInfrastructureEl) return;
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    chargingInfrastructureEl.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
   }
 
   function applyPresetToConfiguration() {
@@ -173,32 +332,47 @@ document.addEventListener('DOMContentLoaded', function() {
     if (essCapacityInput && defaults.ess_capacity_kwh != null) essCapacityInput.value = String(Math.round(defaults.ess_capacity_kwh));
     if (euRateInput && defaults.avg_energy_use_kw != null) euRateInput.value = String(defaults.avg_energy_use_kw);
 
+    const year = currentPresetPayload.selected_period?.year;
+    const month = currentPresetPayload.selected_period?.month;
+    persistSourceContext('princeton', year, month);
+
+    const saved = trySaveBusParameters({ showSuccess: true });
+    if (!saved) {
+      if (quickStartStatus) displayStatus(quickStartStatus, 'Fix bus parameter errors, then try Apply again.', true);
+      refreshBusParamChrome();
+      return;
+    }
+
     const chargeRate = defaults.charge_rate_kw;
     if (Number.isFinite(Number(chargeRate))) {
-      try { localStorage.setItem('quickStartChargeRateKw', String(chargeRate)); } catch {}
-      if (Array.isArray(chargers) && chargers.length === 0) {
-        chargers.push({ name: 'Depot Charger 1', rate: Number(chargeRate) });
-        localStorage.setItem('chargers', JSON.stringify(chargers));
-        renderChargers();
-      }
+      applyChargeRateToChargers(chargeRate);
     } else {
       try { localStorage.removeItem('quickStartChargeRateKw'); } catch {}
     }
 
-    const year = currentPresetPayload.selected_period?.year;
-    const month = currentPresetPayload.selected_period?.month;
-    persistSourceContext('princeton', year, month);
-    saveBusParameters();
+    const periodKey = getCurrentPeriodKeyFromPayload();
+    if (periodKey) {
+      try { localStorage.setItem(LS_LAST_APPLIED_PRESET_KEY, periodKey); } catch {}
+      appliedPeriodKey = periodKey;
+    }
+    presetApplied = true;
+    syncLastSavedBusFromInputs();
+    setBusFieldAppliedClass(true);
+    refreshBusParamChrome();
     dispatchConfigChanged('quickStartPreset');
-    if (quickStartStatus) displayStatus(quickStartStatus, 'Real-world values applied. You can edit any field before continuing.');
+    if (quickStartStatus) displayStatus(quickStartStatus, 'Bus settings saved. Use Charger Quick Start below to add or confirm a charger.');
   }
 
-  // --- Bus parameter save/load ---
-  function saveBusParameters() {
+  /**
+   * @param {{ showSuccess?: boolean }} opts
+   * @returns {boolean}
+   */
+  function trySaveBusParameters(opts = {}) {
+    const showSuccess = opts.showSuccess !== false;
     if (!essCapacityInput || !euRateInput || !lowSocWarningInput || !criticalSocWarningInput || !busParamsStatus) {
       console.error('One or more bus parameter DOM elements are missing.');
       displayStatus(busParamsStatus, 'Error: Page elements not loaded correctly. Try refreshing.', true);
-      return;
+      return false;
     }
 
     const essCapacity = toNum(essCapacityInput.value);
@@ -206,23 +380,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const lowSOC = toNum(lowSocWarningInput.value);
     const criticalSOC = toNum(criticalSocWarningInput.value);
 
-    if (!(essCapacity > 0)) { displayStatus(busParamsStatus, 'Error: Invalid ESS Capacity.', true); return; }
-    if (!(euRate >= 0)) { displayStatus(busParamsStatus, 'Error: Invalid EU Rate.', true); return; }
-    if (!(lowSOC >= 0 && lowSOC <= 100)) { displayStatus(busParamsStatus, 'Error: Invalid Low SOC Warning.', true); return; }
-    if (!(criticalSOC >= 0 && criticalSOC <= 100)) { displayStatus(busParamsStatus, 'Error: Invalid Critical SOC Warning.', true); return; }
-    if (!(lowSOC > criticalSOC)) { displayStatus(busParamsStatus, 'Error: Low SOC must be higher than Critical SOC.', true); return; }
-    if (criticalSOC < 5) { displayStatus(busParamsStatus, 'Error: Critical SOC should be ≥ 5%.', true); return; }
+    if (!(essCapacity > 0)) { displayStatus(busParamsStatus, 'Error: Invalid ESS Capacity.', true); return false; }
+    if (!(euRate >= 0)) { displayStatus(busParamsStatus, 'Error: Invalid EU Rate.', true); return false; }
+    if (!(lowSOC >= 0 && lowSOC <= 100)) { displayStatus(busParamsStatus, 'Error: Invalid Low SOC Warning.', true); return false; }
+    if (!(criticalSOC >= 0 && criticalSOC <= 100)) { displayStatus(busParamsStatus, 'Error: Invalid Critical SOC Warning.', true); return false; }
+    if (!(lowSOC > criticalSOC)) { displayStatus(busParamsStatus, 'Error: Low SOC must be higher than Critical SOC.', true); return false; }
+    if (criticalSOC < 5) { displayStatus(busParamsStatus, 'Error: Critical SOC should be ≥ 5%.', true); return false; }
 
     try {
       localStorage.setItem('busESSCapacity', String(essCapacity));
       localStorage.setItem('euRate', String(euRate));
       localStorage.setItem('lowSOCThreshold', String(lowSOC));
       localStorage.setItem('criticalSOCThreshold', String(criticalSOC));
-      displayStatus(busParamsStatus, 'Bus parameters saved successfully!');
+      if (showSuccess) displayStatus(busParamsStatus, 'Bus parameters saved successfully!');
+      syncLastSavedBusFromInputs();
+      refreshBusParamChrome();
       dispatchConfigChanged('busParams');
+      return true;
     } catch (e) {
       console.error('Error saving bus parameters to localStorage:', e);
       displayStatus(busParamsStatus, 'Failed to save bus parameters.', true);
+      return false;
     }
   }
 
@@ -236,10 +414,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (euRateInput && euRate) euRateInput.value = euRate;
     if (lowSocWarningInput && lowSOC) lowSocWarningInput.value = lowSOC;
     if (criticalSocWarningInput && criticalSOC) criticalSocWarningInput.value = criticalSOC;
+    syncLastSavedBusFromInputs();
   }
 
-  // Expose for other pages (editor)
-  window.getBusParams = function(){
+  window.getBusParams = function() {
     return {
       essCapacity: toNum(localStorage.getItem('busESSCapacity')),
       euRate: toNum(localStorage.getItem('euRate')),
@@ -248,23 +426,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   };
 
-  // --- Tab switching ---
-  function switchTab(activeTabId) {
-    if (activeTabId === 'bus-params') {
-      tabBusParams && tabBusParams.classList.add('active');
-      busParamsContent && busParamsContent.classList.add('active');
-      tabChargerSetup && tabChargerSetup.classList.remove('active');
-      chargerSetupContent && chargerSetupContent.classList.remove('active');
-    } else if (activeTabId === 'charger-setup') {
-      tabChargerSetup && tabChargerSetup.classList.add('active');
-      chargerSetupContent && chargerSetupContent.classList.add('active');
-      tabBusParams && tabBusParams.classList.remove('active');
-      busParamsContent && busParamsContent.classList.remove('active');
-    }
-    if (chargerFormContainer) chargerFormContainer.style.display = 'none';
-  }
-
-  // --- Chargers: load, render, add/edit/delete ---
   function loadChargers() {
     const stored = localStorage.getItem('chargers');
     if (stored) {
@@ -277,66 +438,83 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!chargerListContainer) return;
     chargerListContainer.innerHTML = '';
     if (!Array.isArray(chargers) || chargers.length === 0) {
-      chargerListContainer.innerHTML = '<p>No chargers configured yet.</p>';
+      chargerListContainer.innerHTML = '<p class="charger-list-empty">No chargers configured yet.</p>';
       return;
     }
     const ul = document.createElement('ul');
+    ul.className = 'charger-list';
     chargers.forEach((charger, index) => {
       const li = document.createElement('li');
-      li.textContent = `${charger.name} - ${charger.rate} kW `;
+      li.className = 'charger-list-row';
+
+      const label = document.createElement('span');
+      label.className = 'charger-list-label';
+      label.textContent = `${charger.name} · ${charger.rate} kW`;
+
+      const actions = document.createElement('span');
+      actions.className = 'charger-list-actions';
 
       const editBtn = document.createElement('button');
+      editBtn.type = 'button';
       editBtn.textContent = 'Edit';
-      editBtn.classList.add('action-btn-small');
+      editBtn.classList.add('charger-row-action');
       editBtn.onclick = () => editCharger(index);
-      li.appendChild(editBtn);
 
       const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
       deleteBtn.textContent = 'Delete';
-      deleteBtn.classList.add('action-btn-small');
-      deleteBtn.style.marginLeft = '5px';
+      deleteBtn.classList.add('charger-row-action');
       deleteBtn.onclick = () => deleteCharger(index);
-      li.appendChild(deleteBtn);
 
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+      li.appendChild(label);
+      li.appendChild(actions);
       ul.appendChild(li);
     });
     chargerListContainer.appendChild(ul);
   }
 
-  // Default name helper (Depot Charger N) with smart increment if previous ends in a number
-  function getNextChargerName() {
-  const count = chargers?.length || 0;
-  const last = chargers[count - 1];
-  if (last && last.name) {
-    const m = /^(.*?)(\d+)$/.exec(String(last.name).trim());
-    if (m) {
-      let base = m[1].trim() || 'Depot Charger';
-      const num = parseInt(m[2], 10) + 1;
-      // ensure exactly one space between base and the number
-      return `${base.endsWith(' ') ? base : base + ' '}${num}`;
-    }
+  /** Prefer cached real-world kW; else last charger rate (handles string JSON). */
+  function pickRateForNewChargerForm() {
+    const quickStartRate = toNum(localStorage.getItem('quickStartChargeRateKw'));
+    if (Number.isFinite(quickStartRate)) return quickStartRate;
+    const last = chargers[chargers.length - 1];
+    const lastR = last != null ? toNum(last.rate) : NaN;
+    return Number.isFinite(lastR) ? lastR : '';
   }
-  return `Depot Charger ${count + 1}`;
-}
 
+  function getNextChargerName() {
+    const count = chargers?.length || 0;
+    const last = chargers[count - 1];
+    if (last && last.name) {
+      const m = /^(.*?)(\d+)$/.exec(String(last.name).trim());
+      if (m) {
+        let base = m[1].trim() || 'Depot Charger';
+        const num = parseInt(m[2], 10) + 1;
+        return `${base.endsWith(' ') ? base : base + ' '}${num}`;
+      }
+    }
+    return `Depot Charger ${count + 1}`;
+  }
 
   function showChargerForm(chargerData = null, index = -1) {
     if (!chargerFormContainer || !chargerIdInput || !chargerNameInput || !chargerRateInput) return;
     chargerIdInput.value = index;
 
-    // If caller provided nothing, compute defaults here as well
     if (!chargerData) {
-      const nextName = getNextChargerName();
-      const last = chargers[chargers.length - 1];
-      const quickStartRate = toNum(localStorage.getItem('quickStartChargeRateKw'));
-      const nextRate = (last && typeof last.rate === 'number') ? last.rate : (Number.isFinite(quickStartRate) ? quickStartRate : '');
-      chargerData = { name: nextName, rate: nextRate };
+      chargerData = { name: getNextChargerName(), rate: pickRateForNewChargerForm() };
     }
 
     chargerNameInput.value = chargerData.name ?? '';
-    chargerRateInput.value = chargerData.rate ?? '';
+    const r = chargerData.rate;
+    chargerRateInput.value = r !== null && r !== undefined && r !== '' ? String(r) : '';
     chargerFormContainer.style.display = 'block';
-    chargerNameInput.focus();
+    if (index === -1 || Number.isNaN(index)) {
+      chargerNameInput.focus();
+    } else {
+      chargerRateInput.focus();
+    }
   }
 
   function saveCharger() {
@@ -365,7 +543,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function editCharger(index) { showChargerForm(chargers[index], index); }
 
   function deleteCharger(index) {
-    // Retain confirm() for now (will migrate to Notification Center later)
     if (confirm(`Are you sure you want to delete charger "${chargers[index].name}"?`)) {
       chargers.splice(index, 1);
       localStorage.setItem('chargers', JSON.stringify(chargers));
@@ -375,40 +552,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // --- Event Listeners ---
-  if (saveBusParamsButton) saveBusParamsButton.addEventListener('click', saveBusParameters);
-  if (tabBusParams) tabBusParams.addEventListener('click', () => switchTab('bus-params'));
-  if (tabChargerSetup) tabChargerSetup.addEventListener('click', () => switchTab('charger-setup'));
+  if (saveBusParamsButton) {
+    saveBusParamsButton.addEventListener('click', () => { trySaveBusParameters({ showSuccess: true }); });
+  }
 
   if (addChargerBtn) {
     addChargerBtn.addEventListener('click', () => {
-      // Refresh from storage to avoid stale state if modified elsewhere
       try { const stored = localStorage.getItem('chargers'); chargers = stored ? JSON.parse(stored) : []; } catch { chargers = []; }
-      const last = chargers[chargers.length - 1];
-      const nextName = getNextChargerName();
-      const quickStartRate = toNum(localStorage.getItem('quickStartChargeRateKw'));
-      const nextRate = (last && typeof last.rate === 'number') ? last.rate : (Number.isFinite(quickStartRate) ? quickStartRate : '');
-      showChargerForm({ name: nextName, rate: nextRate }, -1);
+      showChargerForm(null, -1);
     });
   }
   if (saveChargerDetailsBtn) saveChargerDetailsBtn.addEventListener('click', saveCharger);
   if (cancelChargerDetailsBtn && chargerFormContainer) {
     cancelChargerDetailsBtn.addEventListener('click', () => { chargerFormContainer.style.display = 'none'; });
   }
+
   if (sourcePrincetonBtn) {
     sourcePrincetonBtn.addEventListener('click', () => {
       updateSourceButtons('princeton');
       persistSourceContext('princeton');
       if (!currentPresetPayload) fetchPrincetonPreset();
+      else refreshBusParamChrome();
     });
   }
   if (sourceManualBtn) {
     sourceManualBtn.addEventListener('click', () => {
       updateSourceButtons('manual');
       persistSourceContext('manual');
-      if (quickStartStatus) displayStatus(quickStartStatus, 'Manual mode selected. Existing values remain editable.');
+      try { localStorage.removeItem(LS_LAST_APPLIED_PRESET_KEY); } catch {}
+      presetApplied = false;
+      appliedPeriodKey = null;
+      setBusFieldAppliedClass(false);
+      refreshBusParamChrome();
+      if (quickStartStatus) displayStatus(quickStartStatus, 'Manual mode: edit values and save bus parameters.');
     });
   }
+
   if (presetYearSelect) {
     presetYearSelect.addEventListener('change', async () => {
       const chosenYear = Number(presetYearSelect.value);
@@ -423,25 +602,77 @@ document.addEventListener('DOMContentLoaded', function() {
       await refreshPresetForSelection();
     });
   }
-  if (presetMonthSelect) presetMonthSelect.addEventListener('change', refreshPresetForSelection);
+  if (presetMonthSelect) {
+    presetMonthSelect.addEventListener('change', async () => {
+      await refreshPresetForSelection();
+    });
+  }
   if (applyPrincetonDefaultsBtn) applyPrincetonDefaultsBtn.addEventListener('click', applyPresetToConfiguration);
 
-  // --- Initial Load ---
-  if (document.getElementById('bus-params-content')) {
+  [essCapacityInput, euRateInput, lowSocWarningInput, criticalSocWarningInput].forEach((el) => {
+    if (el) {
+      el.addEventListener('input', onBusFieldInput);
+      el.addEventListener('change', onBusFieldInput);
+    }
+  });
+
+  if (ctaScrollQuickstart) {
+    ctaScrollQuickstart.addEventListener('click', async () => {
+      updateSourceButtons('princeton');
+      persistSourceContext('princeton');
+      const y = presetYearSelect ? Number(presetYearSelect.value) : NaN;
+      const m = presetMonthSelect ? Number(presetMonthSelect.value) : NaN;
+      try {
+        if (Number.isFinite(y) && Number.isFinite(m)) {
+          await fetchPrincetonPreset(y, m);
+        } else {
+          await fetchPrincetonPreset(null, null);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      const rate = currentPresetPayload?.suggested_defaults?.charge_rate_kw;
+      if (!Number.isFinite(Number(rate))) {
+        if (chargerStatus) displayStatus(chargerStatus, 'No average charge rate for this month. Pick another period or type kW manually.', true);
+        scrollToChargingInfrastructure();
+        showChargerForm(null, -1);
+        if (chargerRateInput) chargerRateInput.focus();
+        return;
+      }
+      applyChargeRateToChargers(Number(rate));
+      scrollToChargingInfrastructure();
+      showChargerForm(null, -1);
+      if (chargerRateInput) chargerRateInput.focus();
+    });
+  }
+  if (ctaConfigureChargerManual) {
+    ctaConfigureChargerManual.addEventListener('click', () => {
+      sourceManualBtn?.click();
+      if (addChargerBtn) {
+        addChargerBtn.focus();
+        addChargerBtn.click();
+      }
+    });
+  }
+
+  if (busParamsContent) {
     loadBusParameters();
     loadChargers();
-    switchTab('bus-params');
+    if (chargerFormContainer) chargerFormContainer.style.display = 'none';
 
     const source = localStorage.getItem('configSource') || 'princeton';
     updateSourceButtons(source);
     if (source === 'princeton') {
       const storedYear = toNum(localStorage.getItem('configPeriodYear'));
       const storedMonth = toNum(localStorage.getItem('configPeriodMonth'));
-      fetchPrincetonPreset(Number.isFinite(storedYear) ? storedYear : null, Number.isFinite(storedMonth) ? storedMonth : null);
+      fetchPrincetonPreset(Number.isFinite(storedYear) ? storedYear : null, Number.isFinite(storedMonth) ? storedMonth : null).then(() => {
+        refreshBusParamChrome();
+      });
+    } else {
+      refreshBusParamChrome();
     }
   }
 
-  // --- Editor helpers exposed globally ---
   window.getConfiguredChargers = function() {
     try {
       const stored = localStorage.getItem('chargers');
