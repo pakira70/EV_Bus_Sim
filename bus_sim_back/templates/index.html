@@ -55,28 +55,32 @@
                     <p id="quick-start-status" class="status-message"></p>
                 </div>
                 <div class="provenance-note" aria-live="polite">
-                    <p id="provenance-summary">Source: Princeton, NJ fleet dataset.</p>
-                    <p class="helper-text">Counts reflect historical records currently loaded in this workspace.</p>
+                    <p id="provenance-summary">Property: Princeton, NJ, Source: NFI Connect360</p>
+                    <p id="provenance-counts" class="helper-text">Counts reflect historical records currently loaded in this workspace.</p>
                 </div>
             </section>
 
-            <h2 class="config-section-title">Bus energy and warnings</h2>
+            <div id="bus-energy-manual-section" class="hidden">
+                <h2 class="config-section-title">Bus energy use</h2>
 
-            <div class="form-group">
-                <label for="ess-capacity">ESS Capacity (kWh):</label>
-                <input type="number" id="ess-capacity" class="config-bus-field" value="435" min="1">
-                <p class="helper-text">(Energy Storage System capacity per bus)</p>
+                <div class="form-group">
+                    <label for="ess-capacity">ESS Capacity (kWh):</label>
+                    <input type="number" id="ess-capacity" class="config-bus-field" value="435" min="1">
+                    <p class="helper-text">(Energy Storage System capacity per bus)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="eu-rate">Average Energy Use per Hour during RUN (kW):</label>
+                    <input type="number" id="eu-rate" class="config-bus-field" value="55" min="0">
+                    <p class="helper-text">(Average total energy used each operating hour during RUN state)</p>
+                    <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="eu-rate">Average Energy Use per Hour during RUN (kW):</label>
-                <input type="number" id="eu-rate" class="config-bus-field" value="55" min="0">
-                 <p class="helper-text">(Average total energy used each operating hour during RUN state)</p>
-                 <p class="helper-text"><em>Note: Represents average TOTAL consumption (Traction + Aux).</em></p>
-            </div>
+            <h2 class="config-section-title">Warnings</h2>
 
             <fieldset class="config-warning-fieldset">
-                 <legend>Simulation Warning Thresholds</legend>
+                 <legend>Simulation warning thresholds</legend>
                  <div class="form-group">
                      <label for="warning-threshold-low">Low SOC Warning (%):</label>
                      <input type="number" id="warning-threshold-low" class="config-bus-field" value="20" min="0" max="100">
