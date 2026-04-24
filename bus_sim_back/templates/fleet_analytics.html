@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EV Fleet Analytics</title>
-    
+    <link rel="icon" href="{{ url_for('static', filename='img/nu-flavicon.png') }}" type="image/png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -60,7 +61,8 @@
         position: fixed;
         z-index: 40;
         right: max(16px, env(safe-area-inset-right, 0px));
-        bottom: max(16px, env(safe-area-inset-bottom, 0px));
+        /* Sit above the site footer (fixed to viewport; footer is ~1 line + padding) */
+        bottom: calc(16px + 4.5rem + env(safe-area-inset-bottom, 0px));
         display: none;
         flex-direction: column;
         align-items: flex-end;
@@ -381,6 +383,8 @@
             <span class="temp-filter-chip-btn-range"><span id="tempChipRngLo">10</span>–<span id="tempChipRngHi">90</span>°F</span>
         </button>
     </div>
+
+    {% include '_nu_footer.html' %}
 
     <!-- JS Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
