@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const suggestedChargeValue = document.getElementById('suggested-charge-value');
   const suggestedTempValue = document.getElementById('suggested-temp-value');
   const applyPrincetonDefaultsBtn = document.getElementById('apply-princeton-defaults-btn');
-  const provenanceSummary = document.getElementById('provenance-summary');
+  const provenanceCounts = document.getElementById('provenance-counts');
+  const busEnergyManualSection = document.getElementById('bus-energy-manual-section');
   const chargingInfrastructureEl = document.getElementById('charging-infrastructure');
   const ctaScrollQuickstart = document.getElementById('cta-scroll-quickstart');
   const ctaConfigureChargerManual = document.getElementById('cta-configure-charger-manual');
@@ -204,6 +205,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (ctaScrollQuickstart) ctaScrollQuickstart.classList.toggle('active', source === 'princeton');
     if (ctaConfigureChargerManual) ctaConfigureChargerManual.classList.toggle('active', source !== 'princeton');
     if (quickStartPanel) quickStartPanel.style.display = source === 'princeton' ? 'block' : 'none';
+    if (busEnergyManualSection) {
+      busEnergyManualSection.classList.toggle('hidden', source === 'princeton');
+    }
     refreshBusParamChrome();
   }
 
@@ -225,9 +229,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (suggestedTempValue) suggestedTempValue.textContent = defaults.avg_monthly_temp_f != null ? `${formatNumber(defaults.avg_monthly_temp_f, 1)}°F` : '--';
 
     const prov = payload?.provenance || {};
-    const source = payload?.source || {};
-    if (provenanceSummary) {
-      provenanceSummary.textContent = `Source: ${source.location || 'Princeton, NJ'} | ${formatInt(prov.buses)} buses | ${formatInt(prov.months)} months | ${formatInt(prov.trips)} trips | ${formatInt(prov.charging_sessions)} charging sessions`;
+    if (provenanceCounts) {
+      provenanceCounts.textContent = `Loaded in this workspace: ${formatInt(prov.buses)} buses · ${formatInt(prov.months)} months · ${formatInt(prov.trips)} trips · ${formatInt(prov.charging_sessions)} charging sessions`;
     }
   }
 
