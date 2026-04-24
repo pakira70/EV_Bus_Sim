@@ -1,0 +1,11 @@
+# Render Blueprint — keeps deploy settings in repo (branch, commands, root).
+# If the service was created manually, open Render → Blueprint → sync this file,
+# or match these values under Settings → Build & Deploy (Branch: master, root empty).
+
+services:
+  - type: web
+    name: ev-bus-sim
+    runtime: python
+    branch: master
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --chdir bus_sim_back --bind 0.0.0.0:$PORT --log-level debug
