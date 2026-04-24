@@ -9,7 +9,10 @@ import pandas as pd
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fleet_history.db')
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+_DEFAULT_DB_PATH = os.path.join(_APP_DIR, 'fleet_history.db')
+_env_db = (os.environ.get('DATABASE_PATH') or '').strip()
+DATABASE_PATH = _env_db if _env_db else _DEFAULT_DB_PATH
 
 # --- Database Utility ---
 def get_db_conn():
@@ -59,6 +62,9 @@ def init_db():
         logger.info("Database initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
+
+
+init_db()
 
 # --- HTML Serving Routes ---
 @app.route('/')
@@ -420,8 +426,7 @@ def get_fleet_analytics_data():
 
 
 if __name__ == '__main__':
-    init_db()
-    if not os.path.exists(DATABASE_PATH): 
+    if not os.path.exists(DATABASE_PATH):
         logger.error(f"DB not found at {DATABASE_PATH}")
-    else: 
+    else:
         app.run(debug=True, host='0.0.0.0', port=5000)
