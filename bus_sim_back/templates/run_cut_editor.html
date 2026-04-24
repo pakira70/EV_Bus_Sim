@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EV Bus Sim - Run/Charge Schedule Editor</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/nu-flavicon.png') }}" type="image/png">
     <!-- Links to both general and editor-specific stylesheets -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/editor_style.css') }}">
 </head>
-    <body class="editor-page"></body>
+<body class="editor-page">
     <div class="container"> <!-- Wrapped content in a container for consistency -->
         <h1>Run/Charge Schedule Editor</h1>
         
@@ -217,20 +218,7 @@
 </script>
 
 
-<footer class="site-footer" role="contentinfo">
-  <div class="site-footer__inner">
-    <div class="site-footer__brand">
-      <img
-        src="{{ url_for('static', filename='img/nu-logo-narrow.png') }}"
-        alt="Nunes-Ueno Consulting"
-        loading="lazy"
-        height="28"
-      />
-    </div>
-    <small class="site-footer__legal">© 2025 Nunes-Ueno Consulting.</small>
-  </div>
-</footer>
-
+{% include '_nu_footer.html' %}
 
 </body>
 </html>

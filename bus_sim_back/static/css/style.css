@@ -496,3 +496,43 @@ html, body { min-height: 100%; }
 body { display: flex; flex-direction: column; }
 .container { flex: 1 0 auto; }
 .site-footer { flex: 0 0 auto; }
+
+/* Nunes-Ueno footer: linked logo + centered attribution */
+.site-footer--nu {
+    margin-top: 20px;
+    padding: 10px 0;
+}
+
+.site-footer__inner--nu {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.site-footer__nu-text {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+}
+
+.site-footer__nu-link {
+    display: inline-block;
+    flex-shrink: 0;
+    opacity: 0.88;
+    transition: opacity 0.2s ease;
+}
+
+.site-footer__nu-link:hover {
+    opacity: 1;
+}
+
+.site-footer__nu-logo {
+    height: 28px;
+    width: auto;
+    display: inline-block;
+    vertical-align: baseline;
+}

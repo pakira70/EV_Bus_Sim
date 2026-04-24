@@ -32,6 +32,23 @@
     color: #FFC107; /* Amber for status messages, good visibility */
 }
 
+/* Footer matches editor content gutter; remove global body bottom pad under copyright */
+body.editor-page {
+    padding-bottom: 0;
+}
+
+.editor-page .site-footer__inner--nu {
+    max-width: none;
+    margin: 0;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.editor-page .site-footer--nu {
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
 /* --- Grid Container and Table Base --- */
 /* Make the page's main container full-bleed on the editor page only */
 .editor-page .container {
